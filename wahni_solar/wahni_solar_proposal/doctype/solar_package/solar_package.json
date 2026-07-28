@@ -5,18 +5,108 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_oegu"
+  "basic_information",
+  "brand",
+  "capacity_kw",
+  "base_price",
+  "default_components_section",
+  "solar_panel",
+  "inverter",
+  "production_meter_1",
+  "production_meter_3",
+  "current_transformer",
+  "q_cable",
+  "description_section",
+  "description"
  ],
  "fields": [
   {
-   "fieldname": "section_break_oegu",
-   "fieldtype": "Section Break"
+   "fieldname": "basic_information",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "default": "Enphase",
+   "fieldname": "brand",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Brand",
+   "options": "Enphase\nVsole",
+   "reqd": 1
+  },
+  {
+   "fieldname": "capacity_kw",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Capacity (kW)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "base_price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Base Price",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "default_components_section",
+   "fieldtype": "Section Break",
+   "label": "Default Components"
+  },
+  {
+   "fieldname": "solar_panel",
+   "fieldtype": "Link",
+   "label": "Solar Panel",
+   "options": "Item"
+  },
+  {
+   "fieldname": "inverter",
+   "fieldtype": "Link",
+   "label": "Inverter",
+   "options": "Item"
+  },
+  {
+   "fieldname": "production_meter_1",
+   "fieldtype": "Link",
+   "label": "Production Meter (1 Phase)",
+   "options": "Item"
+  },
+  {
+   "fieldname": "production_meter_3",
+   "fieldtype": "Link",
+   "label": "Production Meter (3 Phase)",
+   "options": "Item"
+  },
+  {
+   "fieldname": "current_transformer",
+   "fieldtype": "Link",
+   "label": "Current Transformer (CT)",
+   "options": "Item"
+  },
+  {
+   "fieldname": "q_cable",
+   "fieldtype": "Link",
+   "label": "Q Cable",
+   "options": "Item"
+  },
+  {
+   "fieldname": "description_section",
+   "fieldtype": "Section Break",
+   "label": "Description"
+  },
+  {
+   "default": "1",
+   "fieldname": "description",
+   "fieldtype": "Check",
+   "label": "Enabled Description"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-28 19:50:10.593528",
+ "modified": "2026-07-28 21:51:02.613139",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Package",
