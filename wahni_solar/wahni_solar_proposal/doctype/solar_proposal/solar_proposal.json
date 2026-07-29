@@ -1,0 +1,144 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:{customer}-{solar_package}",
+ "creation": "2026-07-29 12:57:15.104972",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_information_section",
+  "customer",
+  "solar_package",
+  "date",
+  "system_details_section",
+  "panel_count",
+  "connection_type",
+  "include_structure",
+  "pricing",
+  "project_cost",
+  "discount",
+  "subsidy",
+  "final_amount",
+  "remarks",
+  "remarks_field"
+ ],
+ "fields": [
+  {
+   "fieldname": "basic_information_section",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Customer",
+   "options": "Customer",
+   "reqd": 1
+  },
+  {
+   "fieldname": "solar_package",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Solar Package",
+   "options": "Solar Package",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Proposal Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "system_details_section",
+   "fieldtype": "Section Break",
+   "label": "System Details"
+  },
+  {
+   "fieldname": "panel_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Panel Count",
+   "reqd": 1
+  },
+  {
+   "default": "Single Phase",
+   "fieldname": "connection_type",
+   "fieldtype": "Select",
+   "label": "Connection Type",
+   "options": "Single Phase\nThree Phase",
+   "reqd": 1
+  },
+  {
+   "default": "Checked",
+   "fieldname": "include_structure",
+   "fieldtype": "Check",
+   "label": "Include Structure"
+  },
+  {
+   "fieldname": "pricing",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "project_cost",
+   "fieldtype": "Currency",
+   "label": "Project Cost"
+  },
+  {
+   "fieldname": "subsidy",
+   "fieldtype": "Currency",
+   "label": "Subsidy"
+  },
+  {
+   "fieldname": "final_amount",
+   "fieldtype": "Currency",
+   "label": "Final Amount"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks_field",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "default": "0",
+   "fieldname": "discount",
+   "fieldtype": "Currency",
+   "label": "Discount",
+   "non_negative": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-29 16:39:19.306077",
+ "modified_by": "Administrator",
+ "module": "Wahni Solar Proposal",
+ "name": "Solar Proposal",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

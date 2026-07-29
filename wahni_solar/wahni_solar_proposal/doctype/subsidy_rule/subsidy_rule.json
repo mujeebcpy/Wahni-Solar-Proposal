@@ -1,0 +1,71 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:{capacity_from}-{capacity_to}kW",
+ "creation": "2026-07-29 17:01:35.410202",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "capacity_from",
+  "capacity_to",
+  "subsidy_amount",
+  "enabled"
+ ],
+ "fields": [
+  {
+   "fieldname": "capacity_from",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Capacity From",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "capacity_to",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Capacity To",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "subsidy_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Subsidy Amount",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "Checked",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-29 17:07:52.528769",
+ "modified_by": "Administrator",
+ "module": "Wahni Solar Proposal",
+ "name": "Subsidy Rule",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
