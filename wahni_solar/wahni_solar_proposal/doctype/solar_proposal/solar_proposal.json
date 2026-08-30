@@ -1,20 +1,25 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:{customer}-{solar_package}",
  "creation": "2026-07-29 12:57:15.104972",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "basic_information_section",
-  "customer",
-  "solar_package",
-  "date",
+  "lead",
+  "proposal_date",
+  "capacity_kw",
+  "package_name",
   "system_details_section",
   "panel_count",
+  "panel_brand",
   "connection_type",
   "include_structure",
+  "system_components_section",
+  "table_proposal_bom",
   "pricing",
+  "material_cost",
+  "other_cost",
   "project_cost",
   "discount",
   "subsidy",
@@ -27,30 +32,6 @@
    "fieldname": "basic_information_section",
    "fieldtype": "Section Break",
    "label": "Basic Information"
-  },
-  {
-   "fieldname": "customer",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Customer",
-   "options": "Customer",
-   "reqd": 1
-  },
-  {
-   "fieldname": "solar_package",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Solar Package",
-   "options": "Solar Package",
-   "reqd": 1
-  },
-  {
-   "default": "Today",
-   "fieldname": "date",
-   "fieldtype": "Date",
-   "in_list_view": 1,
-   "label": "Proposal Date",
-   "reqd": 1
   },
   {
    "fieldname": "system_details_section",
@@ -114,15 +95,74 @@
    "fieldtype": "Currency",
    "label": "Discount",
    "non_negative": 1
+  },
+  {
+   "fieldname": "system_components_section",
+   "fieldtype": "Section Break",
+   "label": "System Components"
+  },
+  {
+   "fieldname": "table_proposal_bom",
+   "fieldtype": "Table",
+   "label": "Proposal Bom",
+   "options": "Solar Proposal BOM Item"
+  },
+  {
+   "fieldname": "package_name",
+   "fieldtype": "Link",
+   "label": "Package",
+   "options": "Solar Package",
+   "reqd": 1
+  },
+  {
+   "default": "Premier/Adani",
+   "fieldname": "panel_brand",
+   "fieldtype": "Select",
+   "label": "Panel Brand",
+   "options": "Premier/Adani\nAdani\nPremier",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "proposal_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Proposal Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "lead",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Lead",
+   "options": "Lead",
+   "reqd": 1
+  },
+  {
+   "fieldname": "capacity_kw",
+   "fieldtype": "Float",
+   "label": "Capacity",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "material_cost",
+   "fieldtype": "Currency",
+   "label": "Material Cost"
+  },
+  {
+   "fieldname": "other_cost",
+   "fieldtype": "Currency",
+   "label": "Other Cost"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-29 16:39:19.306077",
+ "modified": "2026-08-30 02:12:48.988755",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Proposal",
- "naming_rule": "Expression",
+ "naming_rule": "By script",
  "owner": "Administrator",
  "permissions": [
   {

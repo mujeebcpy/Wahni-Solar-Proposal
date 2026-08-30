@@ -1,0 +1,79 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-08-20 03:08:00.205022",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "proposal_bom_section",
+  "item_code",
+  "quantity",
+  "uom",
+  "print_name",
+  "print_category",
+  "rate",
+  "amount"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Code",
+   "options": "Item"
+  },
+  {
+   "fieldname": "quantity",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Quantity"
+  },
+  {
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "UOM",
+   "options": "UOM"
+  },
+  {
+   "fieldname": "print_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Print Name"
+  },
+  {
+   "fieldname": "print_category",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Print Category"
+  },
+  {
+   "fieldname": "proposal_bom_section",
+   "fieldtype": "Section Break",
+   "label": "Proposal BOM"
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "label": "Rate"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-30 02:01:46.348943",
+ "modified_by": "Administrator",
+ "module": "Wahni Solar Proposal",
+ "name": "Solar Proposal BOM Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

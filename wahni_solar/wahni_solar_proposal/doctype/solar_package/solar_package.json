@@ -1,21 +1,20 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "format:{brand} {system_type} Inverter System",
  "creation": "2026-07-28 19:00:03.747069",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "basic_information",
   "brand",
-  "capacity_kw",
-  "base_price",
-  "default_components_section",
-  "solar_panel",
-  "inverter",
-  "production_meter_1",
-  "production_meter_3",
-  "current_transformer",
-  "q_cable",
+  "inverter_bom_item",
+  "basic_bom_item",
+  "column_break_sxbi",
+  "system_type",
+  "grid_type",
+  "panel_capacity_min",
+  "panel_capacity_max",
   "description_section",
   "description"
  ],
@@ -35,63 +34,6 @@
    "reqd": 1
   },
   {
-   "fieldname": "capacity_kw",
-   "fieldtype": "Float",
-   "in_list_view": 1,
-   "label": "Capacity (kW)",
-   "non_negative": 1,
-   "reqd": 1
-  },
-  {
-   "fieldname": "base_price",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Base Price",
-   "non_negative": 1,
-   "reqd": 1
-  },
-  {
-   "fieldname": "default_components_section",
-   "fieldtype": "Section Break",
-   "label": "Default Components"
-  },
-  {
-   "fieldname": "solar_panel",
-   "fieldtype": "Link",
-   "label": "Solar Panel",
-   "options": "Item"
-  },
-  {
-   "fieldname": "inverter",
-   "fieldtype": "Link",
-   "label": "Inverter",
-   "options": "Item"
-  },
-  {
-   "fieldname": "production_meter_1",
-   "fieldtype": "Link",
-   "label": "Production Meter (1 Phase)",
-   "options": "Item"
-  },
-  {
-   "fieldname": "production_meter_3",
-   "fieldtype": "Link",
-   "label": "Production Meter (3 Phase)",
-   "options": "Item"
-  },
-  {
-   "fieldname": "current_transformer",
-   "fieldtype": "Link",
-   "label": "Current Transformer (CT)",
-   "options": "Item"
-  },
-  {
-   "fieldname": "q_cable",
-   "fieldtype": "Link",
-   "label": "Q Cable",
-   "options": "Item"
-  },
-  {
    "fieldname": "description_section",
    "fieldtype": "Section Break",
    "label": "Description"
@@ -101,16 +43,63 @@
    "fieldname": "description",
    "fieldtype": "Check",
    "label": "Enabled Description"
+  },
+  {
+   "default": "Micro",
+   "fieldname": "system_type",
+   "fieldtype": "Select",
+   "label": "System Type",
+   "options": "Micro\nString\nHybrid",
+   "reqd": 1
+  },
+  {
+   "default": "On-Grid",
+   "fieldname": "grid_type",
+   "fieldtype": "Select",
+   "label": "Grid Type",
+   "options": "On-Grid\nOff-Grid\nHybrid"
+  },
+  {
+   "fieldname": "column_break_sxbi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "600",
+   "fieldname": "panel_capacity_min",
+   "fieldtype": "Int",
+   "label": "Panel Capacity (Min)",
+   "non_negative": 1
+  },
+  {
+   "default": "620",
+   "fieldname": "panel_capacity_max",
+   "fieldtype": "Int",
+   "label": "Panel Capacity (Max)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "inverter_bom_item",
+   "fieldtype": "Link",
+   "label": "Inverter Specific BOM Item",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "basic_bom_item",
+   "fieldtype": "Link",
+   "label": "Basic Material BOM Item",
+   "options": "Item",
+   "reqd": 1
   }
  ],
- "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-28 21:51:02.613139",
+ "modified": "2026-08-30 01:36:27.793823",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Package",
- "owner": "mujeebcpy@gmail.com",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
  "permissions": [
   {
    "create": 1,
@@ -123,10 +112,20 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
   }
  ],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
