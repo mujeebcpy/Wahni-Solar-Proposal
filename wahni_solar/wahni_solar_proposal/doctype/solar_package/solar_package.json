@@ -12,11 +12,7 @@
   "basic_bom_item",
   "column_break_sxbi",
   "system_type",
-  "grid_type",
-  "panel_capacity_min",
-  "panel_capacity_max",
-  "description_section",
-  "description"
+  "grid_type"
  ],
  "fields": [
   {
@@ -32,17 +28,6 @@
    "label": "Brand",
    "options": "Enphase\nVsole",
    "reqd": 1
-  },
-  {
-   "fieldname": "description_section",
-   "fieldtype": "Section Break",
-   "label": "Description"
-  },
-  {
-   "default": "1",
-   "fieldname": "description",
-   "fieldtype": "Check",
-   "label": "Enabled Description"
   },
   {
    "default": "Micro",
@@ -64,20 +49,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "default": "600",
-   "fieldname": "panel_capacity_min",
-   "fieldtype": "Int",
-   "label": "Panel Capacity (Min)",
-   "non_negative": 1
-  },
-  {
-   "default": "620",
-   "fieldname": "panel_capacity_max",
-   "fieldtype": "Int",
-   "label": "Panel Capacity (Max)",
-   "non_negative": 1
-  },
-  {
    "fieldname": "inverter_bom_item",
    "fieldtype": "Link",
    "label": "Inverter Specific BOM Item",
@@ -94,7 +65,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-30 01:36:27.793823",
+ "modified": "2026-09-03 12:27:21.914218",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Package",

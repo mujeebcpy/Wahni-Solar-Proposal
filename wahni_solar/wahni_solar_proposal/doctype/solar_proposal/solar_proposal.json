@@ -9,8 +9,8 @@
   "basic_information_section",
   "lead",
   "proposal_date",
-  "capacity_kw",
   "package_name",
+  "capacity_kw",
   "system_details_section",
   "panel_count",
   "panel_brand",
@@ -19,6 +19,7 @@
   "system_components_section",
   "table_proposal_bom",
   "pricing",
+  "cost_breakdown",
   "material_cost",
   "other_cost",
   "project_cost",
@@ -155,11 +156,17 @@
    "fieldname": "other_cost",
    "fieldtype": "Currency",
    "label": "Other Cost"
+  },
+  {
+   "fieldname": "cost_breakdown",
+   "fieldtype": "Table",
+   "label": "cost breakdown",
+   "options": "Project Cost Breakdown"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-02 17:39:06.099198",
+ "modified": "2026-09-03 16:35:50.588292",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Proposal",

@@ -1,0 +1,81 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-02 18:46:02.615924",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "project_cost_calculation_section",
+  "table_cost_calculation",
+  "panel_details_section",
+  "panel_min_capacity",
+  "column_break_ismd",
+  "panel_max_cacpacity",
+  "subsidy_rule_section",
+  "table_subsidy_rule"
+ ],
+ "fields": [
+  {
+   "fieldname": "panel_details_section",
+   "fieldtype": "Section Break",
+   "label": "Panel Capacity"
+  },
+  {
+   "fieldname": "panel_min_capacity",
+   "fieldtype": "Int",
+   "label": "Panel Min Capacity"
+  },
+  {
+   "fieldname": "panel_max_cacpacity",
+   "fieldtype": "Int",
+   "label": "Panel Max Cacpacity"
+  },
+  {
+   "fieldname": "column_break_ismd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "subsidy_rule_section",
+   "fieldtype": "Section Break",
+   "label": "Subsidy Rule"
+  },
+  {
+   "fieldname": "table_subsidy_rule",
+   "fieldtype": "Table",
+   "options": "Subsidy Rule"
+  },
+  {
+   "fieldname": "table_cost_calculation",
+   "fieldtype": "Table",
+   "options": "Project Cost Breakdown"
+  },
+  {
+   "fieldname": "project_cost_calculation_section",
+   "fieldtype": "Section Break",
+   "label": "Project Cost Calculation"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-03 16:12:20.717049",
+ "modified_by": "Administrator",
+ "module": "Wahni Solar Proposal",
+ "name": "Wahni Default Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

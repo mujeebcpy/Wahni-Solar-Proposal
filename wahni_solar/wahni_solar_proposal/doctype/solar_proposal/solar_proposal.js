@@ -1,14 +1,37 @@
-// To fetch the default BOM item based on the selected package
 frappe.ui.form.on("Solar Proposal", {
-    package_name: function(frm) {
 
-        if (!frm.doc.package_name) {
+    refresh(frm) {
+        calculate_final(frm);
+    },
+
+    capacity_kw(frm) {
+
+    calculate_panel_count(frm);
+
+    if (flt(frm.doc.capacity_kw) > 0) {
+        load_subsidy(frm, frm.doc.capacity_kw);
+    }
+},
+
+    panel_count(frm) {
+
+        if (!frm.doc.panel_count || flt(frm.doc.panel_count) <= 0) {
+            
             frm.clear_table("table_proposal_bom");
+            frm.clear_table("cost_breakdown");
             frm.refresh_field("table_proposal_bom");
+            frm.refresh_field("cost_breakdown");
+
+            calculate_final(frm);
+            return;
+        }
+        
+        load_cost_breakdown(frm);
+        if (!frm.doc.package_name) {
             return;
         }
 
-        // Get the selected Solar Package
+        // Get selected package
         frappe.call({
             method: "frappe.client.get",
             args: {
@@ -24,9 +47,11 @@ frappe.ui.form.on("Solar Proposal", {
 
                 const solar_package = r.message;
 
-                // Inverter BOM first, Basic BOM second
-                const inverter_bom_item = solar_package.inverter_bom_item;
-                const basic_bom_item = solar_package.basic_bom_item;
+                const inverter_bom_item =
+                    solar_package.inverter_bom_item;
+
+                const basic_bom_item =
+                    solar_package.basic_bom_item;
 
                 if (!inverter_bom_item && !basic_bom_item) {
                     frappe.msgprint(
@@ -35,7 +60,6 @@ frappe.ui.form.on("Solar Proposal", {
                     return;
                 }
 
-                // BOMs will be loaded in this order
                 const bom_items = [];
 
                 if (inverter_bom_item) {
@@ -52,13 +76,12 @@ frappe.ui.form.on("Solar Proposal", {
                     });
                 }
 
-                // Clear existing proposal BOM
                 frm.clear_table("table_proposal_bom");
 
-                // Function to load BOMs sequentially
+                load_bom(0);
+
                 function load_bom(index) {
 
-                    // Finished loading all BOMs
                     if (index >= bom_items.length) {
 
                         frm.refresh_field("table_proposal_bom");
@@ -68,12 +91,13 @@ frappe.ui.form.on("Solar Proposal", {
                             indicator: "green"
                         });
 
+                        calculate_final(frm);
+
                         return;
                     }
 
                     const bom_item = bom_items[index];
 
-                    // Find the default BOM for the Item
                     frappe.call({
                         method: "frappe.client.get_list",
                         args: {
@@ -94,14 +118,12 @@ frappe.ui.form.on("Solar Proposal", {
                                     `No default BOM found for Item: ${bom_item.item_code}`
                                 );
 
-                                // Continue with the next BOM
                                 load_bom(index + 1);
                                 return;
                             }
 
                             const bom_name = r.message[0].name;
 
-                            // Get complete BOM
                             frappe.call({
                                 method: "frappe.client.get",
                                 args: {
@@ -116,14 +138,12 @@ frappe.ui.form.on("Solar Proposal", {
                                             `Unable to load BOM: ${bom_name}`
                                         );
 
-                                        // Continue with next BOM
                                         load_bom(index + 1);
                                         return;
                                     }
 
                                     const bom = r.message;
 
-                                    // Append BOM items
                                     (bom.items || []).forEach(function(item) {
 
                                         const row = frm.add_child(
@@ -136,36 +156,31 @@ frappe.ui.form.on("Solar Proposal", {
                                         row.print_name = item.print_name;
                                         row.print_category = item.print_category;
                                         row.rate = item.rate;
-                                        row.amount = item.amount;
-
+                                        row.amount =
+                                            flt(item.qty) * flt(item.rate);
                                     });
 
-                                    // Load next BOM
                                     load_bom(index + 1);
                                 }
                             });
                         }
                     });
                 }
-
-                // Start: Inverter BOM → Basic BOM
-                load_bom(0);
             }
         });
-    }
-});
-
-frappe.ui.form.on("Solar Proposal", {
-    refresh(frm) {
-        calculate_final(frm);
     },
 
     package_name(frm) {
+
         if (!frm.doc.package_name) {
+            frm.clear_table("table_proposal_bom");
+            frm.refresh_field("table_proposal_bom");
             return;
         }
 
-        load_subsidy(frm, frm.doc.capacity_kw);
+        if (flt(frm.doc.capacity_kw) > 0) {
+            load_subsidy(frm, frm.doc.capacity_kw);
+        }
     },
 
     discount(frm) {
@@ -194,26 +209,63 @@ frappe.ui.form.on("Solar Proposal", {
 });
 
 
+function calculate_panel_count(frm) {
+
+    if (!frm.doc.capacity_kw) {
+        frm.set_value("panel_count", 0);
+        return;
+    }
+
+    frappe.db.get_doc(
+        "Wahni Default Settings",
+        "Wahni Default Settings"
+    ).then(settings => {
+
+        const panel_min_capacity =
+            flt(settings.panel_min_capacity);
+
+        const capacity_kw =
+            flt(frm.doc.capacity_kw);
+
+        if (!panel_min_capacity) {
+            frappe.msgprint(
+                "Panel Min Capacity is not configured in Wahni Default Settings."
+            );
+            return;
+        }
+
+        const panel_count =
+            Math.ceil(
+                (capacity_kw * 1000) / panel_min_capacity
+            );
+
+        frm.set_value(
+            "panel_count",
+            panel_count
+        );
+    });
+}
+
+
 function load_subsidy(frm, capacity) {
 
-    frappe.db.get_list("Subsidy Rule", {
-        filters: {
-            enabled: 1,
-            capacity_from: ["<=", capacity],
-            capacity_to: [">=", capacity]
-        },
-        fields: ["subsidy_amount"],
-        limit: 1
-    }).then(records => {
+    frappe.db.get_doc(
+        "Wahni Default Settings",
+        "Wahni Default Settings"
+    ).then(settings => {
 
-        if (records.length > 0) {
-            frm.set_value(
-                "subsidy",
-                records[0].subsidy_amount || 0
-            );
-        } else {
-            frm.set_value("subsidy", 0);
-        }
+        const rules =
+            settings.table_subsidy_rule || [];
+
+        const rule = rules.find(row =>
+            flt(row.capacity_from) <= flt(capacity) &&
+            flt(row.capacity_to) >= flt(capacity)
+        );
+
+        frm.set_value(
+            "subsidy",
+            rule ? flt(rule.subsidy_amount) : 0
+        );
 
         calculate_final(frm);
     });
@@ -226,41 +278,193 @@ function calculate_final(frm) {
 
     (frm.doc.table_proposal_bom || []).forEach(row => {
 
-        // Calculate amount from quantity × rate
         const quantity = flt(row.quantity);
         const rate = flt(row.rate);
 
         const amount = quantity * rate;
 
-        // Update row amount
         row.amount = amount;
 
-        // Add to material cost
         material_cost += amount;
     });
 
-    // Set Material Cost
-    frm.set_value("material_cost", material_cost);
+    frm.set_value(
+        "material_cost",
+        material_cost
+    );
 
-    // Other Cost
-    const other_cost = flt(frm.doc.other_cost);
+    const other_cost =
+        flt(frm.doc.other_cost);
 
-    // Discount
-    const discount = flt(frm.doc.discount);
+    const discount =
+        flt(frm.doc.discount);
 
-    // Subsidy
-    const subsidy = flt(frm.doc.subsidy);
+    const subsidy =
+        flt(frm.doc.subsidy);
 
-    // Project Cost
-    const project_cost = material_cost + other_cost;
+    const project_cost =
+        material_cost + other_cost;
 
-    frm.set_value("project_cost", project_cost);
+    frm.set_value(
+        "project_cost",
+        project_cost
+    );
 
-    // Final Amount
-    const final_amount = project_cost - discount - subsidy;
+    const final_amount =
+        project_cost - discount - subsidy;
 
-    frm.set_value("final_amount", final_amount);
+    frm.set_value(
+        "final_amount",
+        final_amount
+    );
 
-    // Refresh child table so calculated amounts appear
-    frm.refresh_field("table_proposal_bom");
+    frm.refresh_field(
+        "table_proposal_bom"
+    );
 }
+
+
+function load_cost_breakdown(frm) {
+    frappe.db.get_doc(
+        "Wahni Default Settings",
+        "Wahni Default Settings"
+    ).then(settings => {
+
+        const template = settings.table_cost_calculation || [];
+
+        frm.clear_table("cost_breakdown");
+
+        template.forEach(template_row => {
+            const row = frm.add_child("cost_breakdown");
+
+            row.cost_component = template_row.cost_component;
+            row.rate = flt(template_row.rate);
+
+            apply_cost_calculation(
+                row,
+                template_row.cost_component,
+                settings,
+                frm
+            );
+        });
+
+        calculate_cost_breakdown(frm, settings);
+    });
+}
+
+function apply_cost_calculation(row, component, settings, frm) {
+    const capacity_kw = flt(frm.doc.capacity_kw);
+    const panel_count = flt(frm.doc.panel_count);
+    const panel_capacity = flt(settings.panel_max_cacpacity);
+
+    if (component === "Panel Cost") {
+        row.quantity = panel_count;
+        row.included = 1;
+        row.calculation_note = `${panel_count} panels × ${panel_capacity}W`;
+    }
+
+    else if (component === "Structure Material") {
+        row.quantity = Math.ceil(panel_count / 2);
+        row.included = 1;
+        row.calculation_note = `${capacity_kw} kW`;
+    }
+
+    else if (component === "Labour Structural") {
+        row.quantity = Math.ceil(panel_count / 2);
+        row.included = 1;
+        row.calculation_note = `${panel_count} ÷ 2`;
+    }
+
+    else if (component === "Labour Electrical") {
+        row.quantity = Math.ceil(panel_count / 2);
+        row.included = 1;
+        row.calculation_note = `${panel_count} panels ÷ 2`;
+    }
+
+    else if (component === "Supervisor Documentation and Visits") {
+        row.quantity = 1;
+        row.included = 1;
+        row.calculation_note = "1 × Supervisor";
+    }
+
+    else if (component === "Sales Commission") {
+        row.quantity = capacity_kw;
+        row.included = 1;
+        row.calculation_note = `${capacity_kw} kW`;
+    }
+
+    else if (component === "Shipping") {
+        row.quantity = 1;
+        row.included = 1;
+        row.calculation_note = "1 × Shipping";
+    }
+
+    else if (component === "Margin") {
+        row.quantity = 1;
+        row.included = 1;
+        row.calculation_note = "1 × Margin";
+    }
+
+    else if (component === "Walk Way") {
+        row.quantity = 0;
+        row.included = 0;
+        row.calculation_note = "Optional";
+    }
+
+    else if (component === "Ladder") {
+        row.quantity = 0;
+        row.included = 0;
+        row.calculation_note = "Optional";
+    }
+}
+
+function calculate_cost_breakdown(frm) {
+    frappe.db.get_doc(
+        "Wahni Default Settings",
+        "Wahni Default Settings"
+    ).then(settings => {
+
+        const panel_capacity = flt(settings.panel_max_cacpacity);
+        let total = 0;
+
+        (frm.doc.cost_breakdown || []).forEach(row => {
+            const rate = flt(row.rate);
+            const quantity = flt(row.quantity);
+
+            if (row.cost_component === "Panel Cost") {
+                row.amount = row.included
+                    ? rate * panel_capacity * quantity
+                    : 0;
+            } else {
+                row.amount = row.included
+                    ? rate * quantity
+                    : 0;
+            }
+
+            total += flt(row.amount);
+        });
+
+        frm.refresh_field("cost_breakdown");
+        frm.set_value("other_cost", total);
+
+        calculate_final(frm);
+    });
+}
+
+
+// auto calculate amount
+frappe.ui.form.on("Project Cost Breakdown", {
+
+    rate(frm, cdt, cdn) {
+        calculate_cost_breakdown(frm);
+    },
+
+    quantity(frm, cdt, cdn) {
+        calculate_cost_breakdown(frm);
+    },
+
+    included(frm, cdt, cdn) {
+        calculate_cost_breakdown(frm);
+    }
+
+});
