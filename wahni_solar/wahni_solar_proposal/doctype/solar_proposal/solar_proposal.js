@@ -2,6 +2,12 @@ frappe.ui.form.on("Solar Proposal", {
 
     refresh(frm) {
         calculate_final(frm);
+        frm.add_custom_button(__('Project'), () => {
+            frappe.model.open_mapped_doc({
+                method: 'wahni_solar.wahni_solar_proposal.doctype.solar_proposal.solar_proposal.make_project',
+                frm: frm
+            });
+        }, __('Create'));
     },
 
     capacity_kw(frm) {
@@ -468,3 +474,4 @@ frappe.ui.form.on("Project Cost Breakdown", {
     }
 
 });
+
