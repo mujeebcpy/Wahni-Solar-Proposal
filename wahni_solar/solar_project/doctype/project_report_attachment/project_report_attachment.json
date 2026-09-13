@@ -1,0 +1,33 @@
+{
+ "doctype": "DocType",
+ "name": "Project Report Attachment",
+ "module": "Solar Project",
+ "engine": "InnoDB",
+ "field_order": [
+  "category",
+  "file"
+ ],
+ "fields": [
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "options": "Cover Page\nApplication Acknowledgement Report\nAnnexure I\nFeasibility Report\nPM-Surya Ghar E-Token\nAnnexure II\nAnnexure III\nSingle Line Diagram\nCheck List\nProject Completion Report\nPanel Datasheet and BIS\nPanel DCR Certificate\nPanel Warranty Certificate\nInverter Datasheet\nInverter BIS\nInverter Warranty Card\nMeter Calibration Test Report\nACDB SPD Datasheet\nACDB MCB Datasheet\nEarth Kit Datasheets\nPlant Commissioning Certificate\nSales Invoice\nCustomer Vendor Agreement\nEnd Page\nPanel Datasheet\nPanel BIS",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Use Panel Datasheet and BIS for a combined panel PDF. Separate Panel Datasheet/Panel BIS categories are retained for old records only and are not selected for new reports."
+  },
+  {
+   "fieldname": "file",
+   "fieldtype": "Attach",
+   "label": "PDF",
+   "reqd": 1,
+   "in_list_view": 1
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "istable": 1
+}

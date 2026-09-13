@@ -14,7 +14,6 @@
   "system_details_section",
   "panel_count",
   "panel_brand",
-  "connection_type",
   "include_structure",
   "system_components_section",
   "table_proposal_bom",
@@ -45,14 +44,6 @@
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Panel Count",
-   "reqd": 1
-  },
-  {
-   "default": "Single Phase",
-   "fieldname": "connection_type",
-   "fieldtype": "Select",
-   "label": "Connection Type",
-   "options": "Single Phase\nThree Phase",
    "reqd": 1
   },
   {
@@ -121,7 +112,7 @@
    "fieldname": "panel_brand",
    "fieldtype": "Select",
    "label": "Panel Brand",
-   "options": "Premier/Adani\nAdani\nPremier",
+   "options": "Premier/Adani\nAdani\nPremier\nRenewsys",
    "reqd": 1
   },
   {
@@ -166,7 +157,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-03 16:35:50.588292",
+ "modified": "2026-09-11 16:54:41.220130",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Proposal",

@@ -1,0 +1,120 @@
+{
+ "doctype": "DocType",
+ "name": "Project Report",
+ "module": "Solar Project",
+ "engine": "InnoDB",
+ "field_order": [
+  "project",
+  "requested_by",
+  "status",
+  "progress",
+  "message",
+  "report_pdf",
+  "sld_qet",
+  "result",
+  "input_snapshot"
+ ],
+ "fields": [
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Queued\nRunning\nCompleted\nCompleted with omissions\nFailed",
+   "default": "Queued",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "progress",
+   "fieldtype": "Percent",
+   "label": "Progress",
+   "read_only": 1
+  },
+  {
+   "fieldname": "message",
+   "fieldtype": "Small Text",
+   "label": "Message",
+   "read_only": 1
+  },
+  {
+   "fieldname": "report_pdf",
+   "fieldtype": "Attach",
+   "label": "Project Report PDF",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sld_qet",
+   "fieldtype": "Attach",
+   "label": "Editable SLD Drawing",
+   "read_only": 1
+  },
+  {
+   "fieldname": "result",
+   "fieldtype": "Code",
+   "label": "Included Documents and Missing Information",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "input_snapshot",
+   "fieldtype": "Attach",
+   "label": "Input Snapshot",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Projects Manager",
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Projects User",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "autoname": "format:SPR-{#####}"
+}

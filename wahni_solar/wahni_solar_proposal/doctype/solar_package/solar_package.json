@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:{brand} {system_type} Inverter System",
+ "autoname": "format:{brand} {system_type} Inverter System {connection_type}",
  "creation": "2026-07-28 19:00:03.747069",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -12,7 +12,8 @@
   "basic_bom_item",
   "column_break_sxbi",
   "system_type",
-  "grid_type"
+  "grid_type",
+  "connection_type"
  ],
  "fields": [
   {
@@ -61,11 +62,19 @@
    "label": "Basic Material BOM Item",
    "options": "Item",
    "reqd": 1
+  },
+  {
+   "default": "Single Phase",
+   "fieldname": "connection_type",
+   "fieldtype": "Select",
+   "label": "Connection Type",
+   "options": "Single Phase\nThree Phase",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-03 12:27:21.914218",
+ "modified": "2026-09-11 17:36:42.327581",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Package",

@@ -8,7 +8,7 @@ app_license = "mit"
 # Apps
 # ------------------
 
-# required_apps = []
+required_apps = ["erpnext", "wahni_kseb"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
@@ -44,7 +44,15 @@ app_license = "mit"
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
-doctype_js = {"Lead": "public/js/lead.js"}
+doctype_js = {"Lead": "public/js/lead.js", "Project": "public/js/project.js"}
+
+after_install = "wahni_solar.solar_project.setup.after_migrate"
+after_migrate = "wahni_solar.solar_project.setup.after_migrate"
+doc_events = {"Project": {"validate": "wahni_solar.solar_project.api.validate_project"}}
+has_permission = {"Project Report": "wahni_solar.solar_project.permissions.has_report_permission"}
+permission_query_conditions = {
+    "Project Report": "wahni_solar.solar_project.permissions.report_query_conditions"
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -186,7 +194,8 @@ doctype_js = {"Lead": "public/js/lead.js"}
 # 	"Task": "wahni_solar.task.get_dashboard_data"
 # }
 override_doctype_dashboards = {
-    "Lead": "wahni_solar.overrides.lead_dashboard.get_dashboard_data"
+    "Lead": "wahni_solar.overrides.lead_dashboard.get_dashboard_data",
+    "Project": "wahni_solar.solar_project.project_dashboard.get_dashboard_data",
 }
 
 # exempt linked doctypes from being automatically cancelled
@@ -250,4 +259,3 @@ override_doctype_dashboards = {
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-

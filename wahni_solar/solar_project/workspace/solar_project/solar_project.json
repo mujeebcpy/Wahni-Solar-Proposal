@@ -1,0 +1,40 @@
+{
+ "doctype": "Workspace",
+ "name": "Solar Project",
+ "label": "Solar Project",
+ "title": "Solar Project",
+ "module": "Solar Project",
+ "icon": "project",
+ "public": 1,
+ "is_hidden": 0,
+ "sequence_id": 30,
+ "content": "[{\"id\": \"solar-header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Solar Project</span>\", \"col\": 12}}, {\"id\": \"solar-shortcut-0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Projects\", \"col\": 3}}, {\"id\": \"solar-shortcut-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Shared Report Documents\", \"col\": 3}}, {\"id\": \"solar-shortcut-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Report History\", \"col\": 3}}, {\"id\": \"solar-shortcut-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Report Settings\", \"col\": 3}}]",
+ "shortcuts": [
+  {
+   "label": "Projects",
+   "link_to": "Project",
+   "type": "DocType",
+   "doc_view": "List"
+  },
+  {
+   "label": "Shared Report Documents",
+   "link_to": "Project Report Document",
+   "type": "DocType",
+   "doc_view": "List"
+  },
+  {
+   "label": "Report History",
+   "link_to": "Project Report",
+   "type": "DocType",
+   "doc_view": "List"
+  },
+  {
+   "label": "Report Settings",
+   "link_to": "Project Report Settings",
+   "type": "DocType",
+   "doc_view": ""
+  }
+ ],
+ "links": [],
+ "roles": []
+}

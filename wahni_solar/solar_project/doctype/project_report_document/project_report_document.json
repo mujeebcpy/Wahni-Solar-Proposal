@@ -1,0 +1,132 @@
+{
+ "doctype": "DocType",
+ "name": "Project Report Document",
+ "module": "Solar Project",
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "category",
+  "enabled",
+  "brand",
+  "panel_watt_peak",
+  "model",
+  "file",
+  "page_from",
+  "page_to"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "options": "\nCover Page\nApplication Acknowledgement Report\nAnnexure I\nFeasibility Report\nPM-Surya Ghar E-Token\nAnnexure II\nAnnexure III\nSingle Line Diagram\nCheck List\nProject Completion Report\nPanel Datasheet and BIS\nPanel DCR Certificate\nPanel Warranty Certificate\nInverter Datasheet\nInverter BIS\nInverter Warranty Card\nMeter Calibration Test Report\nACDB SPD Datasheet\nACDB MCB Datasheet\nEarth Kit Datasheets\nPlant Commissioning Certificate\nSales Invoice\nCustomer Vendor Agreement\nEnd Page\nSLD Template\nPanel Datasheet\nPanel BIS",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "For a panel PDF, select Panel Datasheet and BIS, then enter its brand and watt-peak."
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "brand",
+   "fieldtype": "Data",
+   "label": "Equipment Brand",
+   "description": "Required for combined panel datasheet/BIS; must match the linked Solar Proposal panel brand. For other categories, blank applies to all brands.",
+   "mandatory_depends_on": "eval:doc.enabled && doc.category == 'Panel Datasheet and BIS'"
+  },
+  {
+   "fieldname": "panel_watt_peak",
+   "fieldtype": "Int",
+   "label": "Panel Watt Peak (Wp)",
+   "non_negative": 1,
+   "depends_on": "eval:doc.category == 'Panel Datasheet and BIS'",
+   "mandatory_depends_on": "eval:doc.enabled && doc.category == 'Panel Datasheet and BIS'",
+   "description": "Enter the individual panel rating manually in Wp. Any positive whole number is allowed; it must match the Project Panel Watt Peak (Wp)."
+  },
+  {
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Equipment Model",
+   "description": "Optional Item code. Selected only when that Item is present in the Project Material List.",
+   "depends_on": "eval:doc.category != 'Panel Datasheet and BIS'"
+  },
+  {
+   "fieldname": "file",
+   "fieldtype": "Attach",
+   "label": "Document",
+   "reqd": 1,
+   "description": "For Panel Datasheet and BIS, upload one PDF containing both documents."
+  },
+  {
+   "fieldname": "page_from",
+   "fieldtype": "Int",
+   "label": "First PDF Page",
+   "non_negative": 1,
+   "description": "1-based. Leave zero to start at the first page. Not used for QET."
+  },
+  {
+   "fieldname": "page_to",
+   "fieldtype": "Int",
+   "label": "Last PDF Page",
+   "non_negative": 1,
+   "description": "Leave zero to include through the final page."
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Projects Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Projects User",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "autoname": "field:title",
+ "title_field": "title"
+}

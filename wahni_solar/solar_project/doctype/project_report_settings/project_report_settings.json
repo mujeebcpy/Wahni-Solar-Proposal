@@ -1,0 +1,29 @@
+{
+ "doctype": "DocType",
+ "name": "Project Report Settings",
+ "module": "Solar Project",
+ "engine": "InnoDB",
+ "field_order": [
+  "invoice_print_format"
+ ],
+ "fields": [
+  {
+   "fieldname": "invoice_print_format",
+   "fieldtype": "Link",
+   "label": "Sales Invoice Print Format",
+   "options": "Print Format",
+   "description": "Leave blank to use the configured default."
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "issingle": 1
+}
