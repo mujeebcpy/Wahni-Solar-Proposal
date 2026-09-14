@@ -66,7 +66,7 @@ def select_library(entries, category, brand, item_codes, panel_watt_peak=None):
     brand = (brand or "").strip().casefold()
     if category == PANEL_DOCUMENT:
         if not brand or cint(panel_watt_peak) <= 0:
-            return None, "Set the linked Solar Proposal's panel brand and the Project's Panel Watt Peak (Wp)."
+            return None, "Set the linked Solar Proposal's panel brand and select a Panel Item on the Project with a positive Watt Peak (Wp)."
         matches = [entry for entry in entries if entry.category == category
                    and (entry.brand or "").strip().casefold() == brand
                    and cint(entry.get("panel_watt_peak")) == cint(panel_watt_peak)]
@@ -136,6 +136,9 @@ def resolve_context(project_name):
     if proposal and proposal.lead and (not lead or proposal.lead != lead.name):
         frappe.throw("The Solar Proposal Lead does not match the Project customer's Lead.")
     package = linked("Solar Package", proposal.package_name if proposal else None)
+    panel_item = linked("Item", project.get("custom_panel_item"))
+    if panel_item and panel_item.item_group != "Panel":
+        frappe.throw("Select a Panel Item from the Panel item group.")
     grids = frappe.get_list("KSEB Grid Check", filters={"lead": lead.name}, pluck="name",
                            limit_page_length=0) if lead else []
     grid_name = project.get("custom_report_grid_check")
@@ -181,7 +184,8 @@ def resolve_context(project_name):
 
     context = {
         "project": project.name,
-        "panel_watt_peak": project.get("custom_panel_watt_peak"),
+        "panel_item": panel_item.name if panel_item else None,
+        "panel_watt_peak": panel_item.get("custom_panel_watt_peak") if panel_item else None,
         "customer_address": fields(address, "city county"),
         "grid": fields(grid, "consumer_name consumer_no customer_address registered_mobile division subdivision section tariff connected_load proposed_solar_capacity phase"),
         "lead": fields(lead, "email_id mobile_no phone"),

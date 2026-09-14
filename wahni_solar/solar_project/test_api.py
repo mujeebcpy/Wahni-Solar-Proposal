@@ -229,8 +229,8 @@ class TestReportSources(unittest.TestCase):
         self.assertTrue(result["documents"][0]["optional"])
 
     def test_project_upload_categories_cannot_repeat(self):
-        doc = MagicMock()
-        doc.get.return_value = [frappe._dict(category="Cover Page", file=None), frappe._dict(category="Cover Page", file=None)]
+        doc = Record(custom_report_attachments=[Record(category="Cover Page", file=None),
+                                               Record(category="Cover Page", file=None)])
         with patch.object(api.frappe, "throw", side_effect=ValueError("duplicate")):
             with self.assertRaises(ValueError):
                 api.validate_project(doc)
@@ -248,8 +248,9 @@ class TestReportSources(unittest.TestCase):
     def test_resolve_links_project_overrides_and_existing_invoice(self):
         records = {
             ("Project", "P"): Record(name="P", customer="C", custom_solar_proposal="S",
-                                     custom_panel_watt_peak=630,
+                                     custom_panel_item="PANEL-630", custom_panel_watt_peak=600,
                                      custom_report_attachments=[Record(category="Cover Page", file="/files/project.pdf")]),
+            ("Item", "PANEL-630"): Record(name="PANEL-630", item_group="Panel", custom_panel_watt_peak=630),
             ("Customer", "C"): Record(name="C", lead_name="L", customer_primary_address="A"),
             ("Address", "A"): Record(name="A", city="Puthukkad", county="Thrissur"),
             ("Lead", "L"): Record(name="L", email_id="test@example.com"),
@@ -274,7 +275,7 @@ class TestReportSources(unittest.TestCase):
             context = source_module.resolve_context("P")
             project = records[("Project", "P")]
             project.custom_report_attachments.append(Record(category=PANEL_DOCUMENT, file="/files/panel-override.pdf"))
-            project.custom_panel_watt_peak = 0
+            project.custom_panel_item = None
             overridden = source_module.resolve_context("P")
         selected = {row["category"]: row for row in context["sources"]}
         self.assertEqual(selected["Cover Page"]["url"], "/files/project.pdf")
@@ -294,10 +295,57 @@ class TestReportSources(unittest.TestCase):
         self.assertEqual(selected[PANEL_DOCUMENT]["url"], "/files/630.pdf")
         self.assertEqual(selected[PANEL_DOCUMENT]["panel_watt_peak"], 630)
         self.assertEqual(context["panel_watt_peak"], 630)
+        self.assertEqual(context["panel_item"], "PANEL-630")
+        self.assertIn({"doctype": "Item", "name": "PANEL-630"}, context["permissions"])
         self.assertFalse(set(LEGACY_PANEL_CATEGORIES) & selected.keys())
         override = next(row for row in overridden["sources"] if row["category"] == PANEL_DOCUMENT)
         self.assertEqual(override["url"], "/files/panel-override.pdf")
         self.assertEqual(override["origin"], "Project upload")
+
+    def test_project_panel_item_must_belong_to_panel_group(self):
+        doc = Record(custom_panel_item="ITEM", custom_report_attachments=[])
+        for group in ("Panel", "Microinverters", None):
+            with self.subTest(group=group), patch.object(api, "frappe") as fake:
+                fake.db.get_value.return_value = group
+                fake.throw.side_effect = ValueError
+                if group == "Panel":
+                    api.validate_project(doc)
+                else:
+                    with self.assertRaises(ValueError):
+                        api.validate_project(doc)
+                fake.db.get_value.assert_called_once_with("Item", "ITEM", "item_group")
+
+    def test_panel_item_resolution_checks_permissions_group_and_missing_wattage(self):
+        project = Record(name="P", custom_panel_item="PANEL", custom_panel_watt_peak=630)
+        panel = Record(name="PANEL", item_group="Panel", custom_panel_watt_peak=0)
+        records = {("Project", "P"): project, ("Item", "PANEL"): panel}
+        with patch.object(source_module.frappe, "get_doc", side_effect=lambda dt, name: records[(dt, name)]), \
+                patch.object(source_module.frappe, "get_list", return_value=[]), \
+                patch.object(source_module.frappe, "throw", side_effect=ValueError):
+            for value in (None, 0):
+                panel.custom_panel_watt_peak = value
+                context = source_module.resolve_context("P")
+                source = next(row for row in context["sources"] if row["category"] == PANEL_DOCUMENT)
+                self.assertNotIn("url", source)
+                self.assertIn("Panel Item", source["reason"])
+                self.assertEqual(context["panel_watt_peak"], value)
+            panel.denied = True
+            with self.assertRaises(frappe.PermissionError):
+                source_module.resolve_context("P")
+            panel.denied = False
+            panel.item_group = "Microinverters"
+            with self.assertRaises(ValueError):
+                source_module.resolve_context("P")
+
+    def test_migration_removes_only_the_legacy_project_field(self):
+        from wahni_solar.solar_project import setup
+
+        with patch.object(setup, "frappe") as fake:
+            fake.db.get_value.side_effect = ["Project-custom_panel_watt_peak", None]
+            setup.remove_project_panel_watt_peak()
+            setup.remove_project_panel_watt_peak()
+        fake.db.get_value.assert_called_with("Custom Field", {"dt": "Project", "fieldname": "custom_panel_watt_peak"})
+        fake.delete_doc.assert_called_once_with("Custom Field", "Project-custom_panel_watt_peak", ignore_permissions=True)
 
     def test_worker_merges_combined_panel_once_and_supports_older_snapshots(self):
         from pypdf import PdfWriter

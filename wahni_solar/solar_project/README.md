@@ -23,7 +23,7 @@ the combined report and its input archive; adjust it if generation reports a siz
 ### Equipment Items and package brands
 
 Use the standard **Brand** field on Item. Items in the **Microinverters** group show
-an optional **Model** field. Items in **Panels** show **Model** and **Watt Peak (Wp)**;
+an optional **Model** field. Items in **Panel** show **Model** and **Watt Peak (Wp)**;
 enter Wp manually for each panel Item. These fields use the exact item group names.
 Changing groups hides the irrelevant fields without deleting their stored values.
 
@@ -32,8 +32,11 @@ enabled Microinverters Items that the user can access. Set the Brand on the Item
 before choosing it on a new package. New/changed package brands are validated on
 save. Existing packages keep their brand and remain editable while Item data is
 being populated; migration creates missing Brand masters for those existing values.
-The Item's model/Wp fields store equipment details; report Wp selection continues
-to use the Project's manually entered Panel Watt Peak (Wp).
+Select **Panel Item** in the Project's Project Report section. The link offers only
+Items in the **Panel** group, and report generation reads **Watt Peak (Wp)** from
+that Item under the requesting user's read permissions. Migration removes the old
+manual Project wattage field from the form while retaining its database values.
+Existing Projects need a Panel Item selected before automatic panel document selection.
 
 ### Shared report documents
 
@@ -63,8 +66,9 @@ not alter previous generations.
 
 For panels, create a **Project Report Document** with category **Panel Datasheet and BIS**,
 Equipment Brand (e.g. `Adani`), **Panel Watt Peak (Wp)** (e.g. `630`), and one Document
-attachment containing both the datasheet and BIS. Set **Panel Watt Peak (Wp)** in
-the Project's Project Report section. The brand comes from its linked Solar Proposal.
+attachment containing both the datasheet and BIS. Select **Panel Item** in
+the Project's Project Report section and set **Watt Peak (Wp)** on that Item.
+The brand comes from the linked Solar Proposal.
 Both must match one enabled library record; `Adani / 600` and `Adani / 630` are separate
 records. Brand matching ignores case and surrounding spaces. An ambiguous proposal
 brand such as `Premier/Adani` does not choose either manufacturer's document.

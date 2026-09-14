@@ -12,7 +12,6 @@ def after_migrate():
     migrate_package_brands()
     seed_library()
 
-
 def seed_library():
     folder = Path(frappe.get_app_path("wahni_solar", "solar_project", "templates"))
     entries = [

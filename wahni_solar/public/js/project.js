@@ -76,6 +76,9 @@
             update_grid_connection(frm);
         },
         setup(frm) {
+            frm.set_query("custom_panel_item", () => ({
+                filters: { item_group: "Panel" },
+            }));
             frm.set_query("custom_report_sales_invoice", () => ({ filters: {
                 project: frm.doc.name, customer: frm.doc.customer, docstatus: 1, is_return: 0,
             } }));

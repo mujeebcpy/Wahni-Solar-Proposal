@@ -16,6 +16,9 @@ from wahni_solar.solar_project.sources import public_context, read_file, resolve
 
 
 def validate_project(doc, method=None):
+    panel_item = doc.get("custom_panel_item")
+    if panel_item and frappe.db.get_value("Item", panel_item, "item_group") != "Panel":
+        frappe.throw("Select a Panel Item from the Panel item group.")
     seen = set()
     for row in doc.get("custom_report_attachments", []):
         if row.category not in (*SECTIONS, *LEGACY_PANEL_CATEGORIES):
