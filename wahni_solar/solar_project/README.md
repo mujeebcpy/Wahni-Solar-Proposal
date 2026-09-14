@@ -86,9 +86,32 @@ Previously queued snapshots finish using their original separate sections.
 
 ## Generating and editing
 
-Save the Project and click **Generate Project Report**. The latest generation and
+Save the Project and open **Generate**, which contains **SLD**, **Customer Vendor
+Agreement**, **KSEB Agreement**, and **Generate Project Report**. Standalone drawings
+and agreements are saved as private Project attachments and offered for download.
+They generate only the selected document, without generating annexures or invoices.
+The latest full report generation and
 its results are available on Project and in **Report History**. Inputs are captured
 before queuing, so later library replacements cannot change a running generation.
+
+Both agreement categories remain available in **Project Report Document** and the
+Project's **Report Documents** table. Migration seeds the supplied fillable templates
+without replacing existing library uploads. Neither agreement category is merged into
+the final report PDF or listed in its omissions/missing-field warnings, including when
+a Project override is present. Download the customer agreement for signing and handle
+the signed copy separately; the KSEB agreement is a separate submission document.
+
+Agreements use the standard Customer name and primary/unambiguous linked Address,
+falling back to Grid Check name/address when unavailable. Consumer number and electrical
+section come from the Grid Check; total system capacity and price come from Solar
+Proposal capacity and project cost. Panel make/model come from the selected Project
+Panel Item, or a sole Panel Item in the material list. The per-panel capacity uses
+that Item's **Watt Peak (Wp)**. Inverter make/model/rated capacity come from a
+sole inverter Item in the Project material list, falling back to the proposal BOM when
+the material list is empty. Multiple inverter Items leave those fields for manual
+completion. Rated capacity retains the Item value; its field does not specify a unit.
+Date fields use the generation date in the site's timezone and remain editable;
+signing place is left blank. Project agreement uploads are preserved as-is.
 
 Available PDFs are merged in the fixed order in `constants.py`, with PDF bookmarks.
 Missing documents are listed. Missing optional cover/end pages and absent invoices
@@ -109,7 +132,8 @@ attaches it to the Grid Check before it is included in the report snapshot. Gene
 requires Grid Check write permission and the same mandatory fields as its Annexure
 buttons. A generation failure is listed as an omission without blocking other documents.
 
-The generated QET drawing replaces customer/title-block properties; it does not
+**Generate Project Report** always attempts to generate and attach the editable SLD
+`.qet`, even if **Generate → SLD** has never been used. The generated QET drawing replaces customer/title-block properties; it does not
 redesign the circuit or adjust wiring and equipment. Open it in QElectroTech, review
 the drawing, export a PDF, and upload it as **Single Line Diagram**. Generation skips
 that PDF section until an exported PDF is available.
@@ -135,12 +159,37 @@ to Project remain there; the report's input snapshot follows Frappe's attachment
 
 ## Tests
 
-Run with the bench environment's Python and this app on `PYTHONPATH`:
+The unit tests live in `solar_project/tests/` and use Python's standard
+`unittest.TestCase`, `setUp`, `subTest`, and `unittest.mock`. Test names describe
+current behavior. Shared document doubles and template paths live in `helpers.py`.
+
+Run from the app root (`apps/wahni_solar`) with the bench environment's Python:
 
 ```sh
-python -m unittest wahni_solar.solar_project.test_documents wahni_solar.solar_project.test_api wahni_solar.solar_project.test_permissions wahni_solar.solar_project.test_equipment
+python -m unittest discover -s wahni_solar/solar_project/tests -t . -v
 ```
 
-These tests use the supplied PDFs/QETs and mocked Frappe storage. They do not need a
-database or change site records. After migration, verify the Project button, worker
-progress, file permissions, and the library replacement workflow on a test Project.
+To run one suite:
+
+```sh
+python -m unittest wahni_solar.solar_project.tests.test_generation -v
+```
+
+| Suite | Coverage |
+| --- | --- |
+| `test_documents.py` | Agreement fields and dates, editable PDFs, page ordering, SLD values |
+| `test_sources.py` | Customer address fallback, Items, library selection, annexure filenames |
+| `test_api.py` | Standalone actions, request permissions, duplicate requests, snapshots |
+| `test_generation.py` | Report outputs, agreement exclusion, upload preservation, failures |
+| `test_permissions.py` | Report deletion permissions and latest-report links |
+| `test_equipment.py` | Brand search and package validation |
+| `test_setup.py` | Repeatable setup that preserves existing library files and brands |
+
+These tests exercise the supplied PDFs/QETs and mock Frappe storage. They require
+the app's Frappe and pypdf dependencies, but no running site or database. They do
+not change site records. Setup checks cover behavior still used on install/migrate;
+obsolete field migrations and historical library compatibility checks are excluded.
+
+After deployment, verify the Generate menu, actual worker progress, file permissions,
+and library replacement workflow on a test Project. Those site/browser checks are
+outside this unit suite.

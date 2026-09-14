@@ -10,7 +10,7 @@ from frappe.utils import get_datetime, now_datetime
 from frappe.utils.background_jobs import get_job_status
 from frappe.utils.file_manager import save_file
 
-from wahni_solar.solar_project.constants import ACTIVE_STATUSES, FORM_SECTIONS, LEGACY_PANEL_CATEGORIES, OPTIONAL_SECTIONS, PANEL_DOCUMENT, SECTIONS
+from wahni_solar.solar_project.constants import ACTIVE_STATUSES, AGREEMENT_SECTIONS, FORM_SECTIONS, LEGACY_PANEL_CATEGORIES, OPTIONAL_SECTIONS, PANEL_DOCUMENT, SECTIONS
 from wahni_solar.solar_project.documents import fill_form, form_values, merge_pdfs, personalise_qet, select_pdf_pages
 from wahni_solar.solar_project.sources import public_context, read_file, resolve_context, select_annexure
 
@@ -21,7 +21,7 @@ def validate_project(doc, method=None):
         frappe.throw("Select a Panel Item from the Panel item group.")
     seen = set()
     for row in doc.get("custom_report_attachments", []):
-        if row.category not in (*SECTIONS, *LEGACY_PANEL_CATEGORIES):
+        if row.category not in (*SECTIONS, *AGREEMENT_SECTIONS, *LEGACY_PANEL_CATEGORIES):
             frappe.throw("Choose a supported report document category.")
         if row.category in seen:
             frappe.throw(f"Only one Project upload is allowed for {row.category}.")
@@ -66,6 +66,33 @@ def _project_status(report):
 def _result(report):
     return {key: report.get(key) for key in ("name", "project", "status", "progress", "message", "report_pdf",
                                             "sld_qet", "result")}
+
+
+@frappe.whitelist(methods=["POST"])
+def generate_project_document(project, category):
+    if category not in ("SLD", *AGREEMENT_SECTIONS):
+        frappe.throw("Choose SLD, Customer Vendor Agreement or KSEB Agreement.")
+    doc = frappe.get_doc("Project", project)
+    doc.check_permission("write")
+    source_category = "SLD Template" if category == "SLD" else category
+    context = resolve_context(project, categories=(source_category,))
+    source = context["sources"][0]
+    if not source.get("url"):
+        frappe.throw(f"{category}: {source.get('reason', 'No template available.')}")
+    content, _ = read_file(source["url"])
+    missing = []
+    if category == "SLD":
+        content, missing = personalise_qet(content, context)
+        filename = "SLD.qet"
+    else:
+        content = select_pdf_pages(content, source.get("page_from"), source.get("page_to"))
+        if source["origin"] == "Library":
+            context["generation_date"] = now_datetime().date().isoformat()
+            content, missing = fill_form(content, form_values(context)[category])
+        filename = category.replace(" ", "-") + ".pdf"
+    file = save_file(f"{doc.name}-{filename}", content, "Project", doc.name, is_private=1)
+    return {"file_url": file.file_url, "category": category,
+            "missing_fields": missing, "warnings": context["warnings"]}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -128,6 +155,8 @@ def _snapshot(context):
     output = BytesIO()
     with ZipFile(output, "w", ZIP_DEFLATED) as archive:
         for index, source in enumerate(context["sources"]):
+            if source["category"] in AGREEMENT_SECTIONS:
+                continue
             if not source.get("url") and not source.get("invoice") and not source.get("annexure_number"):
                 continue
             try:

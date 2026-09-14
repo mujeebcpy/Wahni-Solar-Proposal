@@ -26,7 +26,7 @@
    "fieldname": "category",
    "fieldtype": "Select",
    "label": "Category",
-   "options": "\nCover Page\nApplication Acknowledgement Report\nAnnexure I\nFeasibility Report\nPM-Surya Ghar E-Token\nAnnexure II\nAnnexure III\nSingle Line Diagram\nCheck List\nProject Completion Report\nPanel Datasheet and BIS\nPanel DCR Certificate\nPanel Warranty Certificate\nInverter Datasheet\nInverter BIS\nInverter Warranty Card\nMeter Calibration Test Report\nACDB SPD Datasheet\nACDB MCB Datasheet\nEarth Kit Datasheets\nPlant Commissioning Certificate\nSales Invoice\nCustomer Vendor Agreement\nEnd Page\nSLD Template\nPanel Datasheet\nPanel BIS",
+   "options": "\nCover Page\nApplication Acknowledgement Report\nAnnexure I\nFeasibility Report\nPM-Surya Ghar E-Token\nAnnexure II\nAnnexure III\nSingle Line Diagram\nCheck List\nProject Completion Report\nPanel Datasheet and BIS\nPanel DCR Certificate\nPanel Warranty Certificate\nInverter Datasheet\nInverter BIS\nInverter Warranty Card\nMeter Calibration Test Report\nACDB SPD Datasheet\nACDB MCB Datasheet\nEarth Kit Datasheets\nPlant Commissioning Certificate\nSales Invoice\nCustomer Vendor Agreement\nKSEB Agreement\nEnd Page\nSLD Template\nPanel Datasheet\nPanel BIS",
    "reqd": 1,
    "in_list_view": 1,
    "description": "For a panel PDF, select Panel Datasheet and BIS, then enter its brand and watt-peak."

@@ -27,10 +27,10 @@ SECTIONS = (
     "Earth Kit Datasheets",
     "Plant Commissioning Certificate",
     "Sales Invoice",
-    "Customer Vendor Agreement",
     "End Page",
 )
-LIBRARY_CATEGORIES = (*SECTIONS, "SLD Template")
+AGREEMENT_SECTIONS = ("Customer Vendor Agreement", "KSEB Agreement")
+LIBRARY_CATEGORIES = (*SECTIONS, *AGREEMENT_SECTIONS, "SLD Template")
 OPTIONAL_SECTIONS = {"Cover Page", "End Page", "Sales Invoice"}
 FORM_SECTIONS = {"Check List", "Project Completion Report"}
 ANNEXURES = {"Annexure I": 1, "Annexure II": 2, "Annexure III": 3}

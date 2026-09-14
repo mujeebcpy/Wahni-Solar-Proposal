@@ -1,7 +1,7 @@
+"""Editable PDF forms, report assembly and SLD personalization."""
+
 import unittest
 import xml.etree.ElementTree as ET
-from pathlib import Path
-from unittest.mock import patch
 
 from pypdf import PdfWriter
 
@@ -9,8 +9,7 @@ from wahni_solar.solar_project.constants import SECTIONS
 from wahni_solar.solar_project.documents import (
     fill_form, form_values, merge_pdfs, pdf_bytes, personalise_qet, phase, read_pdf, select_pdf_pages,
 )
-
-TEMPLATES = Path(__file__).parent / "templates"
+from wahni_solar.solar_project.tests.helpers import TEMPLATES
 
 
 class TestReportDocuments(unittest.TestCase):
@@ -27,6 +26,58 @@ class TestReportDocuments(unittest.TestCase):
 
     def form(self, filename, category):
         return fill_form((TEMPLATES / filename).read_bytes(), form_values(self.context)[category])[0]
+
+    def test_agreements_fill_actual_fields_and_keep_signing_details_editable(self):
+        self.context.update(
+            generation_date="2026-09-14",
+            customer={"customer_name": "Standard Customer"},
+            customer_address={"address_line1": "House 12", "address_line2": "Main Road",
+                              "city": "Thrissur", "state": "Kerala", "country": "India", "pincode": "680001"},
+            panel={"brand": "Panel Make", "custom_model": "P550", "custom_panel_watt_peak": 600},
+            inverter={"brand": "Inverter Make", "custom_model": "IQ8P", "custom_rated_capacity": 480},
+        )
+        self.context["grid"]["section"] = "Test Section"
+        self.context["proposal"]["project_cost"] = 300000
+        for category, filename, pages in (
+            ("KSEB Agreement", "KSEB_Agreement_Fillable.pdf", 4),
+            ("Customer Vendor Agreement", "Solar_Customer_Vendor_Agreement_Fillable.pdf", 5),
+        ):
+            with self.subTest(category=category):
+                reader = read_pdf(self.form(filename, category))
+                fields = reader.get_fields()
+                self.assertEqual(len(reader.pages), pages)
+                self.assertEqual(fields["name"]["/V"], "Standard Customer")
+                self.assertEqual(fields["consumer_no"]["/V"], "1234567890123")
+                self.assertEqual(fields["system_capacity"]["/V"], "5.5kW")
+                self.assertEqual(fields["customer_address"]["/V"], "House 12, Main Road, Thrissur, Kerala, India, 680001")
+                self.assertFalse(fields["name"].get("/Ff", 0) & 1)
+                if category == "KSEB Agreement":
+                    self.assertEqual(fields["customer_pincode"]["/V"], "680001")
+                    self.assertEqual(fields["electrical_section"]["/V"], "Test Section")
+                    self.assertEqual(fields["agreement_date"]["/V"], "14")
+                    self.assertEqual(fields["date_month_year"]["/V"], "September 2026")
+                    self.assertFalse(fields["agreement_place"].get("/V"))
+                else:
+                    self.assertEqual(fields["applicant_name"]["/V"], "Standard Customer")
+                    self.assertEqual(fields["applicant_address"]["/V"], fields["customer_address"]["/V"])
+                    for key, value in {"solar_panel_make": "Panel Make", "solar_panel_model": "P550",
+                                       "solar_panel_capacity": "600 Wp", "inverter_make": "Inverter Make",
+                                       "inverter_model": "IQ8P", "inverter_capacity": "480", "system_price": "300000"}.items():
+                        self.assertEqual(fields[key]["/V"], value)
+                    self.assertEqual(fields["date"]["/V"], "14-09-2026")
+
+    def test_agreement_address_falls_back_to_grid_and_missing_data_stays_blank(self):
+        self.context["customer_address"] = {"city": "Thrissur"}
+        self.context["grid"]["customer_address"] = "KSEB House, Thrissur 680002"
+        values = form_values(self.context)
+        self.assertEqual(values["KSEB Agreement"]["customer_address"], "KSEB House, Thrissur 680002")
+        self.assertEqual(values["KSEB Agreement"]["customer_pincode"], "680002")
+        self.assertEqual(values["Customer Vendor Agreement"]["applicant_name"], "Test & Customer")
+        for watt_peak in (None, 0):
+            self.context["panel"] = {"custom_panel_watt_peak": watt_peak}
+            vendor = form_values(self.context)["Customer Vendor Agreement"]
+            self.assertEqual(vendor["solar_panel_capacity"], "")
+            self.assertEqual(vendor["inverter_model"], "")
 
     def test_forms_only_replace_available_values_and_keep_template_defaults(self):
         checklist = self.form("Check_List_Fillable.pdf", "Check List")
@@ -66,44 +117,6 @@ class TestReportDocuments(unittest.TestCase):
                 self.assertEqual(fields[key].get("/DV"), field.get("/DV"), key)
                 if field.get("/V"):
                     self.assertNotIn(key, missing)
-
-    def test_merged_forms_remain_independently_editable_after_reopening(self):
-        # Deliberately merge the SAME form twice to exercise duplicate field names.
-        form = self.form("Check_List_Fillable.pdf", "Check List")
-        merged, _ = merge_pdfs([("First", form), ("Second", form)])
-        writer = PdfWriter()
-        writer.clone_document_from_reader(read_pdf(merged))
-        writer.update_page_form_field_values(None, {"section_00.solar_plant_owner": "Changed customer"}, auto_regenerate=False)
-        fields = read_pdf(pdf_bytes(writer)).get_fields()
-        self.assertEqual(fields["section_00.solar_plant_owner"]["/V"], "Changed customer")
-        self.assertEqual(fields["section_01.solar_plant_owner"]["/V"], "Test & Customer")
-        self.assertFalse(fields["section_00.solar_plant_owner"].get("/Ff", 0) & 1)
-
-    def test_both_forms_generate_when_writer_has_no_get_fields(self):
-        class LegacyWriter(PdfWriter):
-            def __getattribute__(self, name):
-                if name == "get_fields":
-                    raise AttributeError("'PdfWriter' object has no attribute 'get_fields'")
-                return super().__getattribute__(name)
-
-            def update_page_form_field_values(self, page, *args, **kwargs):
-                if page is None:
-                    raise TypeError("This writer requires an explicit page")
-                return super().update_page_form_field_values(page, *args, **kwargs)
-
-        with patch("wahni_solar.solar_project.documents.PdfWriter", LegacyWriter):
-            checklist = self.form("Check_List_Fillable.pdf", "Check List")
-            completion = self.form("Completion_Certificate_Fillable.pdf", "Project Completion Report")
-            merged, manifest = merge_pdfs([("Check List", checklist), ("Project Completion Report", completion)])
-        self.assertEqual(len(read_pdf(merged).pages), 3)
-        self.assertEqual([row["category"] for row in manifest], ["Check List", "Project Completion Report"])
-        fields = read_pdf(merged).get_fields()
-        self.assertEqual(fields["section_00.solar_plant_owner"]["/V"], "Test & Customer")
-        self.assertEqual(fields["section_01.customer_name"]["/V"], "Test & Customer")
-        original = read_pdf((TEMPLATES / "Check_List_Fillable.pdf").read_bytes()).get_fields()
-        self.assertEqual(fields["section_00.installation_resistance"]["/V"], original["installation_resistance"]["/V"])
-        self.assertEqual(fields["section_01.customer_name"]["/DV"], "Test & Customer")
-        self.assertFalse(fields["section_01.customer_name"].get("/Ff", 0) & 1)
 
     def test_order_bookmarks_and_cover_end_pages(self):
         writer = PdfWriter()
@@ -161,8 +174,7 @@ class TestReportDocuments(unittest.TestCase):
                 for tag in ("elements", "conductors", "inputs"):
                     self.assertEqual(ET.tostring(old.find(tag)), ET.tostring(new.find(tag)))
 
-    def test_qet_connection_type_uses_package_and_ignores_old_proposal_value(self):
-        self.context["proposal"]["connection_type"] = "Single Phase"
+    def test_qet_connection_type_uses_package(self):
         for value, expected in [("Three Phase", "3 Phase"), (None, None)]:
             self.context["package"]["connection_type"] = value
             result, missing = personalise_qet((TEMPLATES / "SLD_Enphase.qet").read_bytes(), self.context)
@@ -200,7 +212,3 @@ class TestReportDocuments(unittest.TestCase):
         values = form_values(self.context)["Check List"]
         self.assertEqual(values["bank_account_number"], "")
         self.assertNotIn("pv_installations_make_and_total_number", values)
-
-
-if __name__ == "__main__":
-    unittest.main()

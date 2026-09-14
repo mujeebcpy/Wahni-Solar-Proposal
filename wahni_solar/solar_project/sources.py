@@ -8,7 +8,7 @@ from urllib.parse import unquote, urlsplit
 import frappe
 from frappe.utils import cint
 
-from wahni_solar.solar_project.constants import ANNEXURES, LEGACY_PANEL_CATEGORIES, LIBRARY_CATEGORIES, OPTIONAL_SECTIONS, PANEL_DOCUMENT, SECTIONS
+from wahni_solar.solar_project.constants import ANNEXURES, LEGACY_PANEL_CATEGORIES, OPTIONAL_SECTIONS, PANEL_DOCUMENT, SECTIONS
 
 
 def read_file(url):
@@ -109,13 +109,14 @@ def resolve_customer_address(customer, linked, warnings):
         if len(candidates) == 1:
             return linked("Address", candidates[0].name)
         if candidates:
-            warnings.append("Several customer addresses match. Set a primary address to use its city and county for the SLD location.")
+            warnings.append("Several customer addresses match. Set a primary address; the KSEB address is used meanwhile.")
     except (frappe.PermissionError, frappe.DoesNotExistError):
-        warnings.append("Customer address is unavailable; the SLD location uses the KSEB address.")
+        warnings.append("Customer address is unavailable; the KSEB address is used instead.")
     return None
 
 
-def resolve_context(project_name):
+def resolve_context(project_name, categories=None):
+    categories = tuple(categories) if categories is not None else (*SECTIONS, "SLD Template")
     project = frappe.get_doc("Project", project_name)
     project.check_permission("read")
     refs = [{"doctype": "Project", "name": project.name}]
@@ -151,7 +152,7 @@ def resolve_context(project_name):
         warnings.append("Select a Report KSEB Grid Check." if grids else "No accessible KSEB Grid Check is linked.")
 
     bank = None
-    if customer:
+    if customer and "Check List" in categories:
         try:
             accounts = frappe.get_list("Bank Account", filters={"party_type": "Customer", "party": customer.name,
                                        "disabled": 0, "is_company_account": 0},
@@ -164,11 +165,11 @@ def resolve_context(project_name):
         except frappe.PermissionError:
             warnings.append("Customer bank information is not accessible; template bank values were retained.")
 
-    invoice = linked("Sales Invoice", project.get("custom_report_sales_invoice"))
+    invoice = linked("Sales Invoice", project.get("custom_report_sales_invoice")) if "Sales Invoice" in categories else None
     if invoice and (invoice.project != project.name or invoice.customer != project.customer
                     or invoice.docstatus != 1 or invoice.is_return):
         frappe.throw("Select a submitted, non-return Sales Invoice for this Project and customer.")
-    if not invoice and customer:
+    if not invoice and customer and "Sales Invoice" in categories:
         try:
             invoices = frappe.get_list("Sales Invoice", filters={"project": project.name, "customer": customer.name,
                                       "docstatus": 1, "is_return": 0}, pluck="name", limit_page_length=0)
@@ -186,10 +187,12 @@ def resolve_context(project_name):
         "project": project.name,
         "panel_item": panel_item.name if panel_item else None,
         "panel_watt_peak": panel_item.get("custom_panel_watt_peak") if panel_item else None,
-        "customer_address": fields(address, "city county"),
+        "customer": fields(customer, "customer_name"),
+        "customer_address": fields(address, "address_line1 address_line2 city county state country pincode"),
+        "panel": fields(panel_item, "brand custom_model custom_panel_watt_peak"),
         "grid": fields(grid, "consumer_name consumer_no customer_address registered_mobile division subdivision section tariff connected_load proposed_solar_capacity phase"),
         "lead": fields(lead, "email_id mobile_no phone"),
-        "proposal": fields(proposal, "capacity_kw panel_count panel_brand"),
+        "proposal": fields(proposal, "capacity_kw panel_count panel_brand project_cost"),
         "package": fields(package, "brand grid_type system_type connection_type"),
         "bank": fields(bank, "account_name bank bank_account_no branch_code"),
         "permissions": refs,
@@ -199,16 +202,28 @@ def resolve_context(project_name):
                               fields=["name", "category", "brand", "model", "panel_watt_peak", "file", "page_from", "page_to"],
                               limit_page_length=0)
     overrides = {row.category: row.file for row in project.get("custom_report_attachments", []) if row.file}
-    if any(category in overrides for category in LEGACY_PANEL_CATEGORIES) or any(
-            entry.category in LEGACY_PANEL_CATEGORIES for entry in library):
+    if PANEL_DOCUMENT in categories and (any(category in overrides for category in LEGACY_PANEL_CATEGORIES) or any(
+            entry.category in LEGACY_PANEL_CATEGORIES for entry in library)):
         warnings.append("Separate Panel Datasheet/Panel BIS entries are no longer selected. Upload a Panel Datasheet and BIS PDF with its brand and Wp, or a combined Project override.")
     items = project.get("custom_table_project_bom") or (proposal.get("table_proposal_bom") if proposal else [])
-    item_codes = {row.item_code for row in items or []}
+    item_codes = {row.item_code for row in items or [] if row.item_code}
+    if "Customer Vendor Agreement" in categories:
+        equipment = [linked("Item", code) for code in sorted(item_codes)]
+        panels = [item for item in equipment if item.item_group == "Panel"]
+        if not panel_item and len(panels) == 1:
+            context["panel"] = fields(panels[0], "brand custom_model custom_panel_watt_peak")
+        elif not panel_item and len(panels) > 1:
+            warnings.append("Several panel Items match. Select the Project's Panel Item for the agreement.")
+        inverters = [item for item in equipment if item.item_group in ("Microinverters", "Inverters", "Inverter")]
+        if len(inverters) == 1:
+            context["inverter"] = fields(inverters[0], "brand custom_model custom_rated_capacity")
+        elif len(inverters) > 1:
+            warnings.append("Several inverter Items match; complete the agreement's inverter details manually.")
     grid_files = frappe.get_all("File", filters={"attached_to_doctype": "KSEB Grid Check",
                                "attached_to_name": grid.name, "is_folder": 0},
-                               fields=["file_name", "file_url"], order_by="creation desc, name desc") if grid else []
+                               fields=["file_name", "file_url"], order_by="creation desc, name desc") if grid and any(category in ANNEXURES for category in categories) else []
     sources = []
-    for category in LIBRARY_CATEGORIES:
+    for category in categories:
         source = {"category": category}
         if category in overrides:
             source.update(url=overrides[category], origin="Project upload", doctype="Project", name=project.name)

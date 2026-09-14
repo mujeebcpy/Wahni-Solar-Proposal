@@ -1,3 +1,5 @@
+"""Report access and deletion behavior."""
+
 import json
 import unittest
 from pathlib import Path
@@ -85,6 +87,3 @@ class TestReportDeletion(unittest.TestCase):
         fake.get_all.assert_not_called()
         fake.db.set_value.assert_not_called()
 
-
-if __name__ == "__main__":
-    unittest.main()

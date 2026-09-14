@@ -2,6 +2,7 @@
 
 import re
 import xml.etree.ElementTree as ET
+from datetime import date
 from io import BytesIO
 
 from pypdf import PdfReader, PdfWriter
@@ -78,7 +79,62 @@ def form_values(context):
     return {
         "Check List": {key: text(value) for key, value in checklist.items()},
         "Project Completion Report": {key: text(value) for key, value in completion.items()},
+        **agreement_values(context),
     }
+
+
+def agreement_values(context):
+    grid = context.get("grid") or {}
+    customer = context.get("customer") or {}
+    address = context.get("customer_address") or {}
+    proposal = context.get("proposal") or {}
+    panel = context.get("panel") or {}
+    inverter = context.get("inverter") or {}
+    # A locality alone is not a usable postal address.
+    if text(address.get("address_line1")):
+        postal_address = ", ".join(text(address.get(key)) for key in
+                                   ("address_line1", "address_line2", "city", "county", "state", "country", "pincode")
+                                   if text(address.get(key)))
+        pincode = address.get("pincode")
+    else:
+        postal_address = text(grid.get("customer_address"))
+        pins = re.findall(r"(?<!\d)\d{6}(?!\d)", postal_address)
+        pincode = pins[0] if len(pins) == 1 else ""
+    common = {
+        "name": customer.get("customer_name") or grid.get("consumer_name"),
+        "consumer_no": grid.get("consumer_no"),
+        "customer_address": postal_address,
+        "system_capacity": kw(proposal.get("capacity_kw")),
+    }
+    panel_capacity = ""
+    try:
+        watt_peak = float(panel.get("custom_panel_watt_peak"))
+        if watt_peak > 0:
+            panel_capacity = f"{watt_peak:g} Wp"
+    except (TypeError, ValueError):
+        pass
+    kseb = {**common, "customer_pincode": pincode, "electrical_section": grid.get("section")}
+    vendor = {
+        **common,
+        "applicant_name": common["name"],
+        "applicant_address": postal_address,
+        "solar_panel_make": panel.get("brand"),
+        "solar_panel_model": panel.get("custom_model"),
+        "solar_panel_capacity": panel_capacity,
+        "inverter_make": inverter.get("brand"),
+        "inverter_model": inverter.get("custom_model"),
+        # The Item field has no specified unit; retain its entered rating.
+        "inverter_capacity": inverter.get("custom_rated_capacity") or "",
+        "system_price": proposal.get("project_cost"),
+    }
+    if context.get("generation_date"):
+        generated_on = date.fromisoformat(context["generation_date"])
+        kseb["agreement_date"] = str(generated_on.day)
+        kseb["date_month_year"] = generated_on.strftime("%B %Y")
+        vendor["date"] = generated_on.strftime("%d-%m-%Y")
+    # Dates are editable; signing place is left for manual completion.
+    return {category: {key: text(value) for key, value in values.items()}
+            for category, values in (("KSEB Agreement", kseb), ("Customer Vendor Agreement", vendor))}
 
 
 def read_pdf(content):

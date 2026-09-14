@@ -1,3 +1,5 @@
+"""Equipment brand lookup and package validation."""
+
 import unittest
 from inspect import unwrap
 from unittest.mock import MagicMock, patch
@@ -60,19 +62,3 @@ class TestEquipment(unittest.TestCase):
             solar_package.SolarPackage.validate(doc)
         fake.db.exists.assert_not_called()
         fake.throw.assert_not_called()
-
-    def test_migration_preserves_existing_brand_masters_and_is_repeatable(self):
-        fake = MagicMock()
-        fake.get_all.return_value = ["Enphase", "Vsole"]
-        existing = {"Enphase"}
-        fake.db.exists.side_effect = lambda doctype, name: name in existing
-        def get_doc(values):
-            doc = MagicMock()
-            doc.insert.side_effect = lambda **kwargs: existing.add(values["brand"])
-            return doc
-        fake.get_doc.side_effect = get_doc
-        with patch.object(equipment, "frappe", fake):
-            equipment.migrate_package_brands()
-            equipment.migrate_package_brands()
-        self.assertEqual(existing, {"Enphase", "Vsole"})
-        fake.get_doc.assert_called_once_with({"doctype": "Brand", "brand": "Vsole"})

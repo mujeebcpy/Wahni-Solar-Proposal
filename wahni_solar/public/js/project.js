@@ -89,6 +89,31 @@
         async refresh(frm) {
             if (frm.is_new()) return;
             if (frm.perm[0]?.write) {
+                for (const category of ["SLD", "Customer Vendor Agreement", "KSEB Agreement"]) {
+                    frm.add_custom_button(__(category), async () => {
+                        if (frm.__report_starting) return;
+                        frm.__report_starting = true;
+                        try {
+                            if (frm.is_dirty()) await frm.save();
+                            const { message } = await frappe.call({
+                                method: `${api}.generate_project_document`,
+                                args: { project: frm.doc.name, category },
+                                freeze: true, freeze_message: __("Generating {0}...", [__(category)]),
+                            });
+                            if (!message) return;
+                            await frm.reload_doc();
+                            const warnings = (message.warnings || []).map((value) =>
+                                `<li>${escape(value)}</li>`).join("");
+                            const blanks = message.missing_fields?.length
+                                ? `<p>${__("{0} fields left blank; complete them in {1}.", [message.missing_fields.length, category === "SLD" ? "QElectroTech" : __("a PDF editor")])}</p>` : "";
+                            frappe.msgprint({
+                                title: __(category),
+                                message: `<p><a href="${escape(message.file_url)}" target="_blank" rel="noopener">${__("Download {0}", [__(category)])}</a></p>` +
+                                    blanks + (warnings ? `<ul>${warnings}</ul>` : ""),
+                            });
+                        } finally { frm.__report_starting = false; }
+                    }, __("Generate"));
+                }
                 frm.add_custom_button(__("Generate Project Report"), async () => {
                     if (frm.__report_starting) return;
                     frm.__report_starting = true;
@@ -100,7 +125,7 @@
                         });
                         if (message) watch(frm, message.name);
                     } finally { frm.__report_starting = false; }
-                });
+                }, __("Generate"));
             }
             frm.add_custom_button(__("Shared Report Documents"), () => frappe.set_route("List", "Project Report Document"), __("View"));
             frm.add_custom_button(__("Report History"), () => frappe.set_route("List", "Project Report", { project: frm.doc.name }), __("View"));

@@ -17,6 +17,8 @@ def seed_library():
     entries = [
         ("Default Checklist", "Check List", "", "Check_List_Fillable.pdf", 0, 0),
         ("Default Completion Certificate", "Project Completion Report", "", "Completion_Certificate_Fillable.pdf", 0, 0),
+        ("Default KSEB Agreement", "KSEB Agreement", "", "KSEB_Agreement_Fillable.pdf", 0, 0),
+        ("Default Customer Vendor Agreement", "Customer Vendor Agreement", "", "Solar_Customer_Vendor_Agreement_Fillable.pdf", 0, 0),
         ("Enphase Datasheet", "Inverter Datasheet", "Enphase", "16.IQ8P Microinverter n BIS.pdf", 1, 4),
         ("Enphase BIS", "Inverter BIS", "Enphase", "16.IQ8P Microinverter n BIS.pdf", 5, 6),
         ("Vsole Datasheet", "Inverter Datasheet", "Vsole", "Vsole_Micro Inverter_Datasheet n BIS.pdf", 1, 1),
