@@ -3,6 +3,9 @@
 
 frappe.ui.form.on("Solar Package", {
     setup(frm) {
+        frm.set_query("brand", () => ({
+            query: "wahni_solar.solar_project.equipment.microinverter_brand_query"
+        }));
         frm.set_query("inverter_bom_item", function () {
             return {
                 filters: {

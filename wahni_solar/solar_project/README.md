@@ -20,6 +20,23 @@ the combined report and its input archive; adjust it if generation reports a siz
 
 ## Maintaining documents
 
+### Equipment Items and package brands
+
+Use the standard **Brand** field on Item. Items in the **Microinverters** group show
+an optional **Model** field. Items in **Panels** show **Model** and **Watt Peak (Wp)**;
+enter Wp manually for each panel Item. These fields use the exact item group names.
+Changing groups hides the irrelevant fields without deleting their stored values.
+
+Solar Package's **Brand** links to the Brand master and offers brands assigned to
+enabled Microinverters Items that the user can access. Set the Brand on the Item
+before choosing it on a new package. New/changed package brands are validated on
+save. Existing packages keep their brand and remain editable while Item data is
+being populated; migration creates missing Brand masters for those existing values.
+The Item's model/Wp fields store equipment details; report Wp selection continues
+to use the Project's manually entered Panel Watt Peak (Wp).
+
+### Shared report documents
+
 Open **Solar Project → Shared Report Documents**. Projects Managers, Sales Managers,
 and System Managers can maintain the library.
 
@@ -117,7 +134,7 @@ to Project remain there; the report's input snapshot follows Frappe's attachment
 Run with the bench environment's Python and this app on `PYTHONPATH`:
 
 ```sh
-python -m unittest wahni_solar.solar_project.test_documents wahni_solar.solar_project.test_api wahni_solar.solar_project.test_permissions
+python -m unittest wahni_solar.solar_project.test_documents wahni_solar.solar_project.test_api wahni_solar.solar_project.test_permissions wahni_solar.solar_project.test_equipment
 ```
 
 These tests use the supplied PDFs/QETs and mocked Frappe storage. They do not need a

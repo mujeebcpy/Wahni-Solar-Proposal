@@ -22,12 +22,13 @@
    "label": "Basic Information"
   },
   {
-   "default": "Enphase",
    "fieldname": "brand",
-   "fieldtype": "Select",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Brand",
-   "options": "Enphase\nVsole",
+   "options": "Brand",
+   "only_select": 1,
+   "description": "Choose a brand assigned to an enabled Item in the Microinverters item group.",
    "reqd": 1
   },
   {
