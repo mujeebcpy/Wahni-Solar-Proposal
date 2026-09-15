@@ -55,10 +55,9 @@
    "label": "Project Cost Calculation"
   }
  ],
- "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-03 16:12:20.717049",
+ "modified": "2026-09-15 13:33:51.887890",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Wahni Default Settings",
@@ -73,6 +72,14 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Sales User",
+   "select": 1,
+   "share": 1
   }
  ],
  "sort_field": "modified",
