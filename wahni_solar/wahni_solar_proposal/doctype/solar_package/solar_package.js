@@ -9,14 +9,14 @@ frappe.ui.form.on("Solar Package", {
         frm.set_query("inverter_bom_item", function () {
             return {
                 filters: {
-                    item_group: "BOM Group"
+                    item_group: "BOM Item"
                 }
             };
         });
         frm.set_query("basic_bom_item", function () {
             return {
                 filters: {
-                    item_group: "BOM Group"
+                    item_group: "BOM Item"
                 }
             };
         });
