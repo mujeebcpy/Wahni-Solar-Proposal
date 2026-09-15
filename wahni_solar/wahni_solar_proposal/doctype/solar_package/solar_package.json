@@ -22,13 +22,12 @@
    "label": "Basic Information"
   },
   {
+   "description": "Choose a brand assigned to an enabled Item in the Microinverters item group.",
    "fieldname": "brand",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Brand",
    "options": "Brand",
-   "only_select": 1,
-   "description": "Choose a brand assigned to an enabled Item in the Microinverters item group.",
    "reqd": 1
   },
   {
@@ -75,7 +74,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-11 17:36:42.327581",
+ "modified": "2026-09-15 13:03:21.243888",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Package",
@@ -105,6 +104,16 @@
    "role": "Sales Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "select": 1,
+   "share": 1
   }
  ],
  "sort_field": "modified",
