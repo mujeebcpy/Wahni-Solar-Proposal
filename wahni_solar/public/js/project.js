@@ -87,6 +87,12 @@
             }));
         },
         async refresh(frm) {
+            // "+" on the Sales Order connection maps the material list server side
+            frm.make_methods = frm.make_methods || {};
+            frm.make_methods["Sales Order"] = () => frappe.model.open_mapped_doc({
+                method: "wahni_solar.solar_project.sales_order.make_sales_order",
+                frm,
+            });
             if (frm.is_new()) return;
             if (frm.perm[0]?.write) {
                 for (const category of ["SLD", "Customer Vendor Agreement", "KSEB Agreement"]) {
