@@ -44,7 +44,11 @@ required_apps = ["erpnext", "wahni_kseb"]
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
-doctype_js = {"Lead": "public/js/lead.js", "Project": "public/js/project.js"}
+doctype_js = {
+    "Lead": "public/js/lead.js",
+    "Project": "public/js/project.js",
+    "Sales Order": "public/js/sales_order.js",
+}
 
 after_install = "wahni_solar.solar_project.setup.after_migrate"
 after_migrate = "wahni_solar.solar_project.setup.after_migrate"
