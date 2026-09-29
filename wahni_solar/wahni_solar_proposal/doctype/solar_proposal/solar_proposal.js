@@ -1,6 +1,24 @@
 frappe.ui.form.on("Solar Proposal", {
 
+    setup(frm) {
+        frm.set_query("proposal_to", () => ({
+            filters: { name: ["in", ["Customer", "Lead", "Prospect"]] }
+        }));
+    },
+
+    proposal_to(frm) {
+        set_party_label(frm);
+        if (frm.doc.party) {
+            frm.set_value("party", "");
+        }
+    },
+
+    party(frm) {
+        set_customer_name(frm);
+    },
+
     refresh(frm) {
+        set_party_label(frm);
         calculate_final(frm);
         frm.add_custom_button(__('Project'), () => {
             frappe.model.open_mapped_doc({
@@ -213,6 +231,31 @@ frappe.ui.form.on("Solar Proposal", {
         calculate_final(frm);
     }
 });
+
+
+function set_party_label(frm) {
+    frm.set_df_property("party", "label", __(frm.doc.proposal_to || "Party"));
+}
+
+
+function set_customer_name(frm) {
+    const { proposal_to, party } = frm.doc;
+
+    if (!party) {
+        frm.set_value("customer_name", "");
+        return;
+    }
+
+    if (proposal_to === "Customer") {
+        frappe.db.get_value("Customer", party, "customer_name")
+            .then(r => frm.set_value("customer_name", r.message.customer_name));
+    } else if (proposal_to === "Lead") {
+        frappe.db.get_value("Lead", party, ["lead_name", "company_name"])
+            .then(r => frm.set_value("customer_name", r.message.company_name || r.message.lead_name));
+    } else if (proposal_to === "Prospect") {
+        frm.set_value("customer_name", party);
+    }
+}
 
 
 function calculate_panel_count(frm) {

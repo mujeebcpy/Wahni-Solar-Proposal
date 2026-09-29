@@ -134,8 +134,11 @@ def resolve_context(project_name, categories=None):
     address = resolve_customer_address(customer, linked, warnings)
     lead = linked("Lead", customer.get("lead_name") if customer else None)
     proposal = linked("Solar Proposal", project.get("custom_solar_proposal"))
-    if proposal and proposal.lead and (not lead or proposal.lead != lead.name):
-        frappe.throw("The Solar Proposal Lead does not match the Project customer's Lead.")
+    if proposal and proposal.get("party"):
+        if proposal.get("proposal_to") == "Lead" and (not lead or proposal.party != lead.name):
+            frappe.throw("The Solar Proposal Lead does not match the Project customer's Lead.")
+        if proposal.get("proposal_to") == "Customer" and (not customer or proposal.party != customer.name):
+            frappe.throw("The Solar Proposal Customer does not match the Project customer.")
     package = linked("Solar Package", proposal.package_name if proposal else None)
     panel_item = linked("Item", project.get("custom_panel_item"))
     if panel_item and panel_item.item_group != "Panel":

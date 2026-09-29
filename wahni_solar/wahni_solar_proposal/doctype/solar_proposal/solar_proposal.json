@@ -7,7 +7,9 @@
  "engine": "InnoDB",
  "field_order": [
   "basic_information_section",
-  "lead",
+  "proposal_to",
+  "party",
+  "customer_name",
   "proposal_date",
   "package_name",
   "capacity_kw",
@@ -124,14 +126,6 @@
    "reqd": 1
   },
   {
-   "fieldname": "lead",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Lead",
-   "options": "Lead",
-   "reqd": 1
-  },
-  {
    "fieldname": "capacity_kw",
    "fieldtype": "Float",
    "label": "Capacity",
@@ -153,11 +147,42 @@
    "fieldtype": "Table",
    "label": "cost breakdown",
    "options": "Project Cost Breakdown"
+  },
+  {
+   "default": "Lead",
+   "fieldname": "proposal_to",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Proposal To",
+   "options": "DocType",
+   "print_hide": 1,
+   "reqd": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "party",
+   "fieldtype": "Dynamic Link",
+   "in_global_search": 1,
+   "in_standard_filter": 1,
+   "label": "Party",
+   "options": "proposal_to",
+   "print_hide": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Customer Name",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-11 16:54:41.220130",
+ "modified": "2026-09-29 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Proposal",
@@ -191,5 +216,8 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "customer_name",
+ "show_title_field_in_link": 1,
+ "search_fields": "party,customer_name"
 }

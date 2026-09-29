@@ -4,3 +4,4 @@
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
+wahni_solar.patches.migrate_solar_proposal_lead_to_party

@@ -46,6 +46,7 @@ required_apps = ["erpnext", "wahni_kseb"]
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 doctype_js = {
     "Lead": "public/js/lead.js",
+    "Customer": "public/js/customer.js",
     "Project": "public/js/project.js",
     "Sales Order": "public/js/sales_order.js",
 }
@@ -199,6 +200,7 @@ permission_query_conditions = {
 # }
 override_doctype_dashboards = {
     "Lead": "wahni_solar.overrides.lead_dashboard.get_dashboard_data",
+    "Customer": "wahni_solar.overrides.customer_dashboard.get_dashboard_data",
     "Project": "wahni_solar.solar_project.project_dashboard.get_dashboard_data",
 }
 
