@@ -54,8 +54,8 @@ doctype_js = {
 after_install = "wahni_solar.solar_project.setup.after_migrate"
 after_migrate = "wahni_solar.solar_project.setup.after_migrate"
 
-# Print Formats with PDF Generator "wkhtmltopdf + background" get a full-page background PDF
-pdf_generator = ["wahni_solar.wahni_solar_proposal.pdf_background.get_pdf"]
+# "Solar Proposal" print format PDFs (PDF Generator "wkhtmltopdf + proposal artwork") get page artwork stamped on
+pdf_generator = ["wahni_solar.wahni_solar_proposal.proposal_pdf.get_pdf"]
 doc_events = {"Project": {"validate": "wahni_solar.solar_project.api.validate_project"}}
 has_permission = {"Project Report": "wahni_solar.solar_project.permissions.has_report_permission"}
 permission_query_conditions = {

@@ -8,11 +8,11 @@ from frappe.utils.file_manager import save_file
 
 def after_migrate():
     from wahni_solar.solar_project.equipment import migrate_package_brands
-    from wahni_solar.wahni_solar_proposal import pdf_background
+    from wahni_solar.wahni_solar_proposal import proposal_pdf
 
     migrate_package_brands()
     seed_library()
-    pdf_background.setup()
+    proposal_pdf.setup()
 
 def seed_library():
     folder = Path(frappe.get_app_path("wahni_solar", "solar_project", "templates"))
