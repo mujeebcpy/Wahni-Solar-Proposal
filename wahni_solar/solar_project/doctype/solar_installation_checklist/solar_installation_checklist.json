@@ -1,0 +1,341 @@
+{
+ "doctype": "DocType",
+ "name": "Solar Installation Checklist",
+ "module": "Solar Project",
+ "engine": "InnoDB",
+ "autoname": "format:SPD-{#####}",
+ "title_field": "project",
+ "search_fields": "project",
+ "track_changes": 1,
+ "default_print_format": "Solar Installation Checklist",
+ "field_order": [
+  "project",
+  "source_details",
+  "source_preview",
+  "document_details",
+  "supplier_installer_designer",
+  "plant_number",
+  "dc_output_voltage",
+  "hybrid_scheme_conforms_to_ce_rees",
+  "completion_certificate_submitted",
+  "energisation_approval_obtained_from_eb",
+  "energisation_approved_by_eb",
+  "dc_isolator_provided",
+  "visual_isolator_provided",
+  "wiring_connections_completed",
+  "earthing_as_per_standards",
+  "installation_resistance",
+  "conductor_and_earthing_resistance",
+  "between_conductor_resistance",
+  "earthing_electrodes_resistance",
+  "inverter_protection_functions_voltage",
+  "over_under_voltage_trip_provided",
+  "inverter_over_voltage_setting",
+  "inverter_under_voltage_setting",
+  "inverter_voltage_trip_time",
+  "inverter_protection_functions_frequency",
+  "inverter_over_frequency_setting",
+  "inverter_under_frequency_setting",
+  "inverter_frequency_trip_time",
+  "unidirectional_isolating_protection",
+  "grid_failure_trip_delay",
+  "re_energisation_time_delay_provided",
+  "re_generating_time_delay_setting",
+  "supply_voltage",
+  "document_date",
+  "inverter_serial_numbers",
+  "assistant_engineer_remarks",
+  "assistant_engineer_date",
+  "assistant_executive_engineer_date",
+  "executive_engineer_date"
+ ],
+ "fields": [
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "source_details",
+   "fieldtype": "Section Break",
+   "label": "Current Project Details"
+  },
+  {
+   "fieldname": "source_preview",
+   "fieldtype": "HTML",
+   "label": "Source Details"
+  },
+  {
+   "fieldname": "document_details",
+   "fieldtype": "Section Break",
+   "label": "Editable Document Details"
+  },
+  {
+   "fieldname": "supplier_installer_designer",
+   "fieldtype": "Data",
+   "label": "Supplier Installer Designer",
+   "default": "Wahni Green Technologies Pvt Ltd"
+  },
+  {
+   "fieldname": "plant_number",
+   "fieldtype": "Data",
+   "label": "Plant Number",
+   "default": "1"
+  },
+  {
+   "fieldname": "dc_output_voltage",
+   "fieldtype": "Data",
+   "label": "Dc Output Voltage"
+  },
+  {
+   "fieldname": "hybrid_scheme_conforms_to_ce_rees",
+   "fieldtype": "Data",
+   "label": "Hybrid Scheme Conforms To Ce Rees",
+   "default": "NA"
+  },
+  {
+   "fieldname": "completion_certificate_submitted",
+   "fieldtype": "Data",
+   "label": "Completion Certificate Submitted",
+   "default": "Yes"
+  },
+  {
+   "fieldname": "energisation_approval_obtained_from_eb",
+   "fieldtype": "Data",
+   "label": "Energisation Approval Obtained From Eb",
+   "default": "NA"
+  },
+  {
+   "fieldname": "energisation_approved_by_eb",
+   "fieldtype": "Data",
+   "label": "Energisation Approved By Eb",
+   "default": "NA"
+  },
+  {
+   "fieldname": "dc_isolator_provided",
+   "fieldtype": "Data",
+   "label": "Dc Isolator Provided",
+   "default": "Yes"
+  },
+  {
+   "fieldname": "visual_isolator_provided",
+   "fieldtype": "Data",
+   "label": "Visual Isolator Provided",
+   "default": "Yes"
+  },
+  {
+   "fieldname": "wiring_connections_completed",
+   "fieldtype": "Data",
+   "label": "Wiring Connections Completed",
+   "default": "Yes"
+  },
+  {
+   "fieldname": "earthing_as_per_standards",
+   "fieldtype": "Data",
+   "label": "Earthing As Per Standards",
+   "default": "Yes"
+  },
+  {
+   "fieldname": "installation_resistance",
+   "fieldtype": "Data",
+   "label": "Installation Resistance"
+  },
+  {
+   "fieldname": "conductor_and_earthing_resistance",
+   "fieldtype": "Data",
+   "label": "Conductor And Earthing Resistance"
+  },
+  {
+   "fieldname": "between_conductor_resistance",
+   "fieldtype": "Data",
+   "label": "Between Conductor Resistance"
+  },
+  {
+   "fieldname": "earthing_electrodes_resistance",
+   "fieldtype": "Data",
+   "label": "Earthing Electrodes Resistance"
+  },
+  {
+   "fieldname": "inverter_protection_functions_voltage",
+   "fieldtype": "Data",
+   "label": "Inverter Protection Functions Voltage",
+   "default": "Yes"
+  },
+  {
+   "fieldname": "over_under_voltage_trip_provided",
+   "fieldtype": "Data",
+   "label": "Over Under Voltage Trip Provided",
+   "default": "Yes"
+  },
+  {
+   "fieldname": "inverter_over_voltage_setting",
+   "fieldtype": "Data",
+   "label": "Inverter Over Voltage Setting",
+   "default": "264V"
+  },
+  {
+   "fieldname": "inverter_under_voltage_setting",
+   "fieldtype": "Data",
+   "label": "Inverter Under Voltage Setting",
+   "default": "192V"
+  },
+  {
+   "fieldname": "inverter_voltage_trip_time",
+   "fieldtype": "Data",
+   "label": "Inverter Voltage Trip Time",
+   "default": "0.35 s"
+  },
+  {
+   "fieldname": "inverter_protection_functions_frequency",
+   "fieldtype": "Data",
+   "label": "Inverter Protection Functions Frequency",
+   "default": "Yes"
+  },
+  {
+   "fieldname": "inverter_over_frequency_setting",
+   "fieldtype": "Data",
+   "label": "Inverter Over Frequency Setting",
+   "default": "50.5Hz"
+  },
+  {
+   "fieldname": "inverter_under_frequency_setting",
+   "fieldtype": "Data",
+   "label": "Inverter Under Frequency Setting",
+   "default": "47.5Hz"
+  },
+  {
+   "fieldname": "inverter_frequency_trip_time",
+   "fieldtype": "Data",
+   "label": "Inverter Frequency Trip Time",
+   "default": "0.2 s"
+  },
+  {
+   "fieldname": "unidirectional_isolating_protection",
+   "fieldtype": "Data",
+   "label": "Unidirectional Isolating Protection",
+   "default": "No"
+  },
+  {
+   "fieldname": "grid_failure_trip_delay",
+   "fieldtype": "Data",
+   "label": "Grid Failure Trip Delay",
+   "default": "3 s"
+  },
+  {
+   "fieldname": "re_energisation_time_delay_provided",
+   "fieldtype": "Data",
+   "label": "Re Energisation Time Delay Provided",
+   "default": "Yes"
+  },
+  {
+   "fieldname": "re_generating_time_delay_setting",
+   "fieldtype": "Data",
+   "label": "Re Generating Time Delay Setting",
+   "default": "60s"
+  },
+  {
+   "fieldname": "supply_voltage",
+   "fieldtype": "Data",
+   "label": "Supply Voltage"
+  },
+  {
+   "fieldname": "document_date",
+   "fieldtype": "Date",
+   "label": "Document Date"
+  },
+  {
+   "fieldname": "inverter_serial_numbers",
+   "fieldtype": "Small Text",
+   "label": "Inverter Serial Numbers"
+  },
+  {
+   "fieldname": "assistant_engineer_remarks",
+   "fieldtype": "Small Text",
+   "label": "Assistant Engineer Remarks"
+  },
+  {
+   "fieldname": "assistant_engineer_date",
+   "fieldtype": "Date",
+   "label": "Assistant Engineer Date"
+  },
+  {
+   "fieldname": "assistant_executive_engineer_date",
+   "fieldtype": "Date",
+   "label": "Assistant Executive Engineer Date"
+  },
+  {
+   "fieldname": "executive_engineer_date",
+   "fieldtype": "Date",
+   "label": "Executive Engineer Date"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Projects Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Projects User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 0
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 0
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "creation": "2026-10-01 18:56:45.000000",
+ "modified": "2026-10-01 18:56:45.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator"
+}

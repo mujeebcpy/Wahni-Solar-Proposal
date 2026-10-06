@@ -61,12 +61,26 @@ class TestReportGeneration(unittest.TestCase):
         source.update(url=url, origin=origin, doctype="Project Report Document", name=category, **metadata)
         self.inputs[url] = content
 
-    def generate(self):
-        self.inputs[self.report.input_snapshot] = api._snapshot(self.context)
+    def generate(self, legacy=False):
+        snapshot = api._snapshot(self.context)
+        if legacy:
+            from io import BytesIO
+            from zipfile import ZipFile
+            output = BytesIO()
+            with ZipFile(BytesIO(snapshot)) as old, ZipFile(output, "w") as new:
+                for name in old.namelist():
+                    content = old.read(name)
+                    if name == "context.json":
+                        context = json.loads(content)
+                        context.pop("snapshot_version", None)
+                        content = json.dumps(context).encode()
+                    new.writestr(name, content)
+            snapshot = output.getvalue()
+        self.inputs[self.report.input_snapshot] = snapshot
         api.build_report(self.report.name)
         return json.loads(self.report.result)
 
-    def test_report_generates_sld_and_excludes_agreements(self):
+    def test_legacy_queued_report_generates_sld_and_excludes_agreements(self):
         for category, filename in {
             "Check List": "Check_List_Fillable.pdf",
             "Project Completion Report": "Completion_Certificate_Fillable.pdf",
@@ -76,7 +90,7 @@ class TestReportGeneration(unittest.TestCase):
         }.items():
             self.add_source(category, (TEMPLATES / filename).read_bytes())
 
-        result = self.generate()
+        result = self.generate(legacy=True)
 
         self.assertEqual(set(self.outputs), {"REPORT-1-SLD.qet", "REPORT-1-Project-Report.pdf"})
         self.assertEqual(self.report.sld_qet, "/private/files/REPORT-1-SLD.qet")
@@ -158,3 +172,22 @@ class TestReportGeneration(unittest.TestCase):
 
         api.read_file.assert_not_called()
         api.save_file.assert_not_called()
+
+    def test_new_snapshot_never_fills_forms_and_freezes_native_pdf(self):
+        writer = PdfWriter()
+        writer.add_blank_page(width=321, height=456)
+        original = pdf_bytes(writer)
+        source = next(row for row in self.context["sources"] if row["category"] == "Check List")
+        source.update(document_type="Solar Installation Checklist", doctype="Solar Installation Checklist",
+                      name="CHECK-1", origin="Print Format")
+        resolved = {"values": {"consumer_number": "old"}, "missing_fields": [], "warnings": [], "sources": []}
+        with patch.object(api, "render_document", return_value=(original, resolved)) as render, \
+                patch.object(api, "fill_form") as fill:
+            self.inputs[self.report.input_snapshot] = api._snapshot(self.context)
+            self.context["grid"]["consumer_no"] = "new"
+            api.build_report(self.report.name)
+        render.assert_called_once()
+        fill.assert_not_called()
+        pdf = read_pdf(self.outputs["REPORT-1-Project-Report.pdf"])
+        self.assertEqual(float(pdf.pages[0].mediabox.width), 321)
+        self.assertFalse(pdf.get_fields())

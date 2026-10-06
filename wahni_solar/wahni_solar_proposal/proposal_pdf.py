@@ -1,19 +1,23 @@
-"""Page artwork for the Solar Proposal PDF.
+"""Page artwork for Wahni-branded PDFs (Solar Proposal, Customer Vendor Agreement).
 
-Frappe renders the "Solar Proposal" Print Format with wkhtmltopdf as usual
-(standard Print → PDF button, emails, attachments). This `pdf_generator` hook
-then stamps PNG artwork under the paginated result: FIRST_PAGE_BG behind page 1
-and LATER_PAGE_BG behind every later page, scaled to the full page.
-CSS can't do this: wkhtmltopdf paints backgrounds only inside the page margins.
+Frappe renders these Print Formats with wkhtmltopdf as usual (standard
+Print → PDF button, emails, attachments). This `pdf_generator` hook then stamps
+PNG artwork under the paginated result: the first-page PNG behind page 1 and the
+later-page PNG behind every later page, scaled to the full page, plus optional
+"N of M" page labels. CSS can't do this: wkhtmltopdf paints backgrounds only
+inside the page margins, and a footer-html would inherit the format's margins.
 
 Frappe calls `pdf_generator` hooks only when the Print Format's PDF Generator is
 not plain "wkhtmltopdf", so setup() adds GENERATOR as an option and selects it
-on the format. Any other format, or this generator on any other format, falls
-through to Frappe's standard wkhtmltopdf output.
+on the proposal format (the other formats ship with it in their JSON). Any other
+format, or this generator on any other format, falls through to Frappe's
+standard wkhtmltopdf output.
 """
 
 import os
 import zlib
+from string import Formatter
+from dataclasses import dataclass
 from functools import lru_cache
 from io import BytesIO
 
@@ -34,24 +38,62 @@ LATER_PAGE_BG = "proposal_bg.png"
 OLD_GENERATOR = "wkhtmltopdf + background"
 OLD_FIELD = "custom_page_background"
 
+MM = 72 / 25.4
+
+
+@dataclass(frozen=True)
+class PageLabel:
+    """Centred page label in Times 12pt, e.g. "{page} of {total}"."""
+
+    template: str
+    # baseline, in mm from the top edge, on the first page and on later pages
+    baseline_mm: tuple
+    first_page: int = 1
+    bold_numbers: bool = False
+    size: float = 12
+
+
+@dataclass(frozen=True)
+class Artwork:
+    doctype: str
+    first_bg: str | None = None
+    later_bg: str | None = None
+    label: PageLabel | None = None
+
+
+# print format -> what gets stamped on its PDF
+FORMATS = {
+    PRINT_FORMAT: Artwork(DOCTYPE, FIRST_PAGE_BG, LATER_PAGE_BG),
+    # positions measured from the signed paper originals
+    "Customer Vendor Agreement": Artwork(
+        "Customer Vendor Agreement", FIRST_PAGE_BG, LATER_PAGE_BG, PageLabel("{page} of {total}", (270.5, 276.5))
+    ),
+    "Customer KSEB Agreement": Artwork(
+        "Customer KSEB Agreement",
+        label=PageLabel("Page {page} of {total}", (266.6, 266.6), first_page=2, bold_numbers=True),
+    ),
+}
+
 
 def get_pdf(print_format=None, html=None, options=None, output=None, pdf_generator=None):
     """`pdf_generator` hook: return None to let Frappe fall back to plain wkhtmltopdf."""
-    if pdf_generator != GENERATOR or print_format != PRINT_FORMAT:
+    artwork = FORMATS.get(print_format)
+    if pdf_generator != GENERATOR or not artwork:
         return None
-    if frappe.get_cached_value("Print Format", print_format, "doc_type") != DOCTYPE:
+    if frappe.get_cached_value("Print Format", print_format, "doc_type") != artwork.doctype:
         return None
 
     from frappe.utils.pdf import get_pdf as wkhtmltopdf
 
     # fail before rendering if the artwork is missing
-    first, later = read_public_file(FIRST_PAGE_BG), read_public_file(LATER_PAGE_BG)
+    first = read_public_file(artwork.first_bg) if artwork.first_bg else None
+    later = read_public_file(artwork.later_bg) if artwork.later_bg else None
 
     options = dict(options or {})
     # encrypt after stamping; an encrypted PDF can't be modified
     password = options.pop("password", None)
 
-    pdf = add_backgrounds(wkhtmltopdf(html, options=options), first, later, password)
+    pdf = add_backgrounds(wkhtmltopdf(html, options=options), first, later, password, artwork.label)
 
     if output is not None:
         output.append(PdfReader(BytesIO(pdf)))
@@ -60,15 +102,21 @@ def get_pdf(print_format=None, html=None, options=None, output=None, pdf_generat
     return pdf
 
 
-def add_backgrounds(pdf, first_png, later_png, password=None):
-    """Put `first_png` behind page 1 and `later_png` behind every other page, edge to edge."""
+def add_backgrounds(pdf, first_png, later_png, password=None, label=None):
+    """Put `first_png` behind page 1 and `later_png` behind every other page, edge to edge,
+    and `label` over each page from `label.first_page` on."""
     writer = PdfWriter(clone_from=PdfReader(BytesIO(pdf)))
+    total = len(writer.pages)
 
     for index, page in enumerate(writer.pages):
         box = tuple(float(x) for x in page.mediabox)
-        # a fresh background page per merge, so nothing carries over between pages
-        background = PdfReader(BytesIO(background_pdf(first_png if index == 0 else later_png, box))).pages[0]
-        page.merge_page(background, over=False)
+        png = first_png if index == 0 else later_png
+        if png:
+            # a fresh background page per merge, so nothing carries over between pages
+            background = PdfReader(BytesIO(background_pdf(png, box))).pages[0]
+            page.merge_page(background, over=False)
+        if label and index + 1 >= label.first_page:
+            page.merge_page(PdfReader(BytesIO(label_pdf(label, index + 1, total, box))).pages[0])
 
     # every later page embeds the same image; keep one copy
     writer.compress_identical_objects()
@@ -122,12 +170,63 @@ def background_pdf(png, box):
     return out.getvalue()
 
 
+# Adobe standard-14 advance widths (1/1000 em) for the characters page labels use
+TIMES_WIDTHS = {" ": 250, "P": 556, "a": 444, "g": 500, "e": 444, "o": 500, "f": 333, **dict.fromkeys("0123456789", 500)}
+
+
+def label_pdf(label, page_number, total, box):
+    """One transparent page of size `box` carrying `label` centred at its baseline."""
+    x0, y0, x1, y1 = box
+    runs = []  # (font, text)
+    for literal, field, _spec, _conv in Formatter().parse(label.template):
+        if literal:
+            runs.append(("/F1", literal))
+        if field:
+            runs.append(("/F2" if label.bold_numbers else "/F1", str({"page": page_number, "total": total}[field])))
+
+    width = sum(TIMES_WIDTHS.get(c, 500) for _font, text in runs for c in text) * label.size / 1000
+    x = x0 + (x1 - x0 - width) / 2
+    baseline_mm = label.baseline_mm[0 if page_number == 1 else 1]
+    y = y1 - baseline_mm * MM
+
+    ops = [f"BT 0 g {x:.2f} {y:.2f} Td"]
+    for font, text in runs:
+        ops.append(f"{font} {label.size} Tf ({text}) Tj")
+    ops.append("ET")
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=x1 - x0, height=y1 - y0)
+    page.mediabox.lower_left = (x0, y0)
+    page.mediabox.upper_right = (x1, y1)
+
+    def font(name):
+        return writer._add_object(DictionaryObject({
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject(name),
+            NameObject("/Encoding"): NameObject("/WinAnsiEncoding"),
+        }))
+
+    page[NameObject("/Resources")] = DictionaryObject({
+        NameObject("/Font"): DictionaryObject({
+            NameObject("/F1"): font("/Times-Roman"), NameObject("/F2"): font("/Times-Bold"),
+        }),
+    })
+    content = DecodedStreamObject()
+    content.set_data(" ".join(ops).encode())
+    page[NameObject("/Contents")] = writer._add_object(content)
+
+    out = BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
 def read_public_file(file_name):
     """Read /files/<file_name> from this site's public folder (never over HTTP)."""
     path = frappe.get_site_path("public", "files", file_name)
     if not os.path.isfile(path):
         frappe.throw(
-            _("Solar Proposal PDF background {0} is missing. Upload it as a public file named {1}.").format(
+            _("PDF background {0} is missing. Upload it as a public file named {1}.").format(
                 f"/files/{file_name}", file_name
             ),
             title=_("Missing PDF Background"),

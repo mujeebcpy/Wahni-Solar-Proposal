@@ -26,19 +26,20 @@ class TestReportAPI(unittest.TestCase):
         fake.get_attr.return_value = generate
         with patch.object(api, "frappe", fake):
             for number in (1, 2, 3):
-                self.assertEqual(api._ensure_annexure("G", number), "/private/files/generated.pdf")
+                self.assertEqual(api._ensure_annexure("G", number)["file_url"], "/private/files/generated.pdf")
                 fake.get_attr.assert_called_with(f"wahni_kseb.api.generate_annexure{number}")
         generate.assert_called_with(kseb_grid_check="G")
         grid.check_permission.assert_any_call("write")
         self.assertIn("FOR UPDATE", fake.db.sql.call_args.args[0])
 
-    def test_annexure_created_by_another_request_is_reused(self):
+    def test_old_annexure_attachments_are_not_implicitly_reused(self):
         fake = MagicMock()
-        fake.get_all.return_value = [Record(file_name="Annexure-1-G_hash.pdf", file_url="/private/files/existing.pdf")]
+        fake.get_all.return_value = [Record(file_name="Annexure-1-G.pdf", file_url="/files/stale.pdf")]
+        fake.get_attr.return_value.return_value = {"file_url": "/private/files/fresh.pdf"}
         with patch.object(api, "frappe", fake):
-            self.assertEqual(api._ensure_annexure("G", 1), "/private/files/existing.pdf")
-        fake.get_attr.assert_not_called()
-        fake.get_doc.return_value.check_permission.assert_called_once_with("read")
+            self.assertEqual(api._ensure_annexure("G", 1)["file_url"], "/private/files/fresh.pdf")
+        fake.get_all.assert_not_called()
+        fake.get_attr.return_value.assert_called_once_with(kseb_grid_check="G")
 
     def test_annexure_generation_requires_grid_write_permission(self):
         grid = MagicMock()
@@ -57,7 +58,7 @@ class TestReportAPI(unittest.TestCase):
             {"category": "Annexure II", "name": "G", "annexure_number": 2},
             {"category": "Annexure III", "name": "G", "annexure_number": 3},
         ]}
-        with patch.object(api, "_ensure_annexure", side_effect=["/files/new.pdf", ValueError("Solar capacity is missing")]) as generate, \
+        with patch.object(api, "_ensure_annexure", side_effect=[{"file_url": "/files/new.pdf"}, ValueError("Solar capacity is missing")]) as generate, \
                 patch.object(api, "read_file", side_effect=lambda url: (url.encode(), {})):
             snapshot = api._snapshot(context)
         self.assertEqual([call.args for call in generate.call_args_list], [("G", 2), ("G", 3)])
@@ -146,38 +147,40 @@ class TestReportAPI(unittest.TestCase):
             api._recover_interrupted(report)
         self.assertEqual(report.status, "Failed")
 
-    def test_standalone_outputs_use_only_requested_source_and_private_project_attachments(self):
-        from datetime import datetime
-
-        folder = TEMPLATES
-        for category, filename in (("SLD", "SLD_Enphase.qet"),
-                                   ("KSEB Agreement", "KSEB_Agreement_Fillable.pdf"),
-                                   ("Customer Vendor Agreement", "Solar_Customer_Vendor_Agreement_Fillable.pdf")):
-            source_category = "SLD Template" if category == "SLD" else category
-            context = {"sources": [{"category": source_category, "url": "/files/template", "origin": "Library"}],
-                       "warnings": [], "grid": {"consumer_name": "Test Customer"}, "proposal": {"capacity_kw": 5}}
+    def test_standalone_outputs_use_mapped_formats_or_explicit_overrides(self):
+        from wahni_solar.solar_project.project_documents import DOCUMENT_TYPES
+        for category, doctype in DOCUMENT_TYPES.items():
+            record = Record(doctype=doctype, name="D", project="P")
+            context = {"sources": [{"category": category, "document_type": doctype}], "warnings": []}
             with self.subTest(category=category), patch.object(api, "frappe") as fake, \
-                    patch.object(api, "resolve_context", return_value=context) as resolve, \
-                    patch.object(api, "read_file", return_value=((folder / filename).read_bytes(), {})), \
-                    patch.object(api, "save_file", return_value=Record(file_url="/private/files/output")) as save, \
-                    patch.object(api, "now_datetime", return_value=datetime(2027, 1, 1, 0, 5)), \
-                    patch.object(api, "_ensure_annexure") as annexure:
+                    patch.object(api, "ensure_documents", return_value={category: record}) as ensure, \
+                    patch.object(api, "resolve_context", return_value=context), \
+                    patch.object(api, "render_document", return_value=(b"native-pdf", {"missing_fields": [], "warnings": []})) as render, \
+                    patch.object(api, "fill_form") as fill, \
+                    patch.object(api, "save_file", return_value=Record(file_url="/private/files/output")) as save:
                 fake.get_doc.return_value = Record(name="P")
                 result = unwrap(api.generate_project_document)("P", category)
-                resolve.assert_called_once_with("P", categories=(source_category,))
-                self.assertEqual(result["file_url"], "/private/files/output")
-                self.assertEqual(save.call_args.args[2:], ("Project", "P"))
-                self.assertEqual(save.call_args.kwargs, {"is_private": 1})
-                annexure.assert_not_called()
-                fake.enqueue.assert_not_called()
-                if category != "SLD":
-                    fields = read_pdf(save.call_args.args[1]).get_fields()
-                    self.assertEqual(fields["name"]["/V"], "Test Customer")
-                    if category == "KSEB Agreement":
-                        self.assertEqual(fields["agreement_date"]["/V"], "1")
-                        self.assertEqual(fields["date_month_year"]["/V"], "January 2027")
-                    else:
-                        self.assertEqual(fields["date"]["/V"], "01-01-2027")
+                ensure.assert_called_once_with("P", (category,))
+                render.assert_called_once_with(record)
+                fill.assert_not_called()
+                self.assertEqual(save.call_args.args[1:], (b"native-pdf", "Project", "P"))
+                self.assertTrue(save.call_args.kwargs["is_private"])
+                self.assertEqual(result["document"], {"doctype": doctype, "name": "D"})
+
+    def test_standalone_agreement_override_is_not_regenerated(self):
+        record = Record(doctype="Customer KSEB Agreement", name="D")
+        source = {"category": "KSEB Agreement", "url": "/files/signed.pdf", "origin": "Project upload"}
+        with patch.object(api, "frappe") as fake, \
+                patch.object(api, "ensure_documents", return_value={"KSEB Agreement": record}), \
+                patch.object(api, "resolve_context", return_value={"sources": [source], "warnings": []}), \
+                patch.object(api, "render_document") as render, \
+                patch.object(api, "read_file", return_value=(b"signed", {})), \
+                patch.object(api, "select_pdf_pages", return_value=b"signed"), \
+                patch.object(api, "save_file", return_value=Record(file_url="/private/files/signed.pdf")):
+            fake.get_doc.return_value = Record(name="P")
+            result = unwrap(api.generate_project_document)("P", "KSEB Agreement")
+        render.assert_not_called()
+        self.assertEqual(result["file_url"], "/private/files/signed.pdf")
 
     def test_standalone_generation_checks_permissions_and_rejects_unknown_action(self):
         with patch.object(api, "frappe") as fake, patch.object(api, "resolve_context") as resolve:

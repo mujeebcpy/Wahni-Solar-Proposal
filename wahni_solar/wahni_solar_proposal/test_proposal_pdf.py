@@ -87,6 +87,35 @@ class TestProposalPdf(unittest.TestCase):
         self.assertIs(result, output)
         self.assertEqual(len(output.pages), 4)
 
+    def test_page_labels_are_stamped_from_their_first_page(self):
+        label = proposal_pdf.PageLabel("Page {page} of {total}", (266.6, 266.6), first_page=2, bold_numbers=True)
+        pdf = PdfReader(BytesIO(proposal_pdf.add_backgrounds(content_pdf(3), None, None, label=label)))
+
+        self.assertEqual([page.extract_text().strip() for page in pdf.pages], ["", "Page 2 of 3", "Page 3 of 3"])
+        # no artwork requested, none embedded
+        self.assertNotIn("/XObject", pdf.pages[1]["/Resources"])
+
+    @patch("frappe.utils.pdf.get_pdf", return_value=content_pdf(5))
+    @patch.object(proposal_pdf, "read_public_file", side_effect=[FIRST, LATER])
+    @patch("frappe.get_cached_value", return_value="Customer Vendor Agreement")
+    def test_vendor_agreement_gets_artwork_and_page_numbers(self, *_):
+        pdf = PdfReader(BytesIO(proposal_pdf.get_pdf(
+            "Customer Vendor Agreement", "<p>x</p>", {}, None, proposal_pdf.GENERATOR)))
+
+        self.assertEqual(artwork(pdf.pages[0]), [b"\xff\x00\x00"])
+        self.assertEqual(artwork(pdf.pages[4]), [b"\x7f\x7f\xff"])
+        self.assertEqual(pdf.pages[0].extract_text().strip(), "1 of 5")
+
+    @patch("frappe.utils.pdf.get_pdf", return_value=content_pdf(4))
+    @patch.object(proposal_pdf, "read_public_file")
+    @patch("frappe.get_cached_value", return_value="Customer KSEB Agreement")
+    def test_kseb_agreement_needs_no_artwork(self, _doc_type, read, _wkhtmltopdf):
+        pdf = PdfReader(BytesIO(proposal_pdf.get_pdf(
+            "Customer KSEB Agreement", "<p>x</p>", {}, None, proposal_pdf.GENERATOR)))
+
+        read.assert_not_called()
+        self.assertEqual(pdf.pages[3].extract_text().strip(), "Page 4 of 4")
+
     @patch("frappe.utils.pdf.get_pdf")
     @patch("frappe.get_cached_value", return_value=proposal_pdf.DOCTYPE)
     def test_missing_artwork_stops_generation(self, _doc_type, wkhtmltopdf):

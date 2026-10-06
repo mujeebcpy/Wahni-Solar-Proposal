@@ -12,7 +12,8 @@ from frappe.utils.file_manager import save_file
 
 from wahni_solar.solar_project.constants import ACTIVE_STATUSES, AGREEMENT_SECTIONS, FORM_SECTIONS, LEGACY_PANEL_CATEGORIES, OPTIONAL_SECTIONS, PANEL_DOCUMENT, SECTIONS
 from wahni_solar.solar_project.documents import fill_form, form_values, merge_pdfs, personalise_qet, select_pdf_pages
-from wahni_solar.solar_project.sources import public_context, read_file, resolve_context, select_annexure
+from wahni_solar.solar_project.sources import public_context, read_file, resolve_context
+from wahni_solar.solar_project.project_documents import DOCUMENT_TYPES, ensure_documents, render_document
 
 
 def validate_project(doc, method=None):
@@ -70,29 +71,33 @@ def _result(report):
 
 @frappe.whitelist(methods=["POST"])
 def generate_project_document(project, category):
-    if category not in ("SLD", *AGREEMENT_SECTIONS):
-        frappe.throw("Choose SLD, Customer Vendor Agreement or KSEB Agreement.")
+    if category not in ("SLD", *DOCUMENT_TYPES):
+        frappe.throw("Choose SLD or a supported Project document.")
     doc = frappe.get_doc("Project", project)
     doc.check_permission("write")
     source_category = "SLD Template" if category == "SLD" else category
+    records = ensure_documents(project, (category,)) if category != "SLD" else {}
     context = resolve_context(project, categories=(source_category,))
     source = context["sources"][0]
-    if not source.get("url"):
-        frappe.throw(f"{category}: {source.get('reason', 'No template available.')}")
-    content, _ = read_file(source["url"])
     missing = []
-    if category == "SLD":
-        content, missing = personalise_qet(content, context)
-        filename = "SLD.qet"
+    document = records.get(category)
+    if source.get("document_type"):
+        content, resolved = render_document(document)
+        missing = resolved["missing_fields"]
+        context["warnings"].extend(resolved["warnings"])
+    elif source.get("url"):
+        content, _ = read_file(source["url"])
+        if category == "SLD":
+            content, missing = personalise_qet(content, context)
+        else:
+            content = select_pdf_pages(content, source.get("page_from"), source.get("page_to"))
     else:
-        content = select_pdf_pages(content, source.get("page_from"), source.get("page_to"))
-        if source["origin"] == "Library":
-            context["generation_date"] = now_datetime().date().isoformat()
-            content, missing = fill_form(content, form_values(context)[category])
-        filename = category.replace(" ", "-") + ".pdf"
+        frappe.throw(f"{category}: {source.get('reason', 'No source available.')}")
+    filename = "SLD.qet" if category == "SLD" else category.replace(" ", "-") + ".pdf"
     file = save_file(f"{doc.name}-{filename}", content, "Project", doc.name, is_private=1)
     return {"file_url": file.file_url, "category": category,
-            "missing_fields": missing, "warnings": context["warnings"]}
+            "missing_fields": missing, "warnings": context["warnings"],
+            "document": {"doctype": document.doctype, "name": document.name} if document else None}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -109,7 +114,13 @@ def generate_project_report(project):
         if report.status in ACTIVE_STATUSES:
             return _result(report)
 
+    records = ensure_documents(project)
     context = resolve_context(project)
+    for source in context["sources"]:
+        if source.get("document_type"):
+            record = records[source["category"]]
+            source.update(doctype=record.doctype, name=record.name)
+            context["permissions"].append({"doctype": record.doctype, "name": record.name})
     report = frappe.get_doc({"doctype": "Project Report", "project": project,
                              "requested_by": frappe.session.user, "status": "Queued", "progress": 0,
                              "message": "Waiting for the report worker."}).insert(ignore_permissions=True)
@@ -136,33 +147,36 @@ def _ensure_annexure(grid_name, number):
         raise ValueError("Unsupported annexure number.")
     grid = frappe.get_doc("KSEB Grid Check", grid_name)
     grid.check_permission("read")
-    # Different Projects may share a Grid Check. Recheck under a row lock before
-    # creating an attachment so concurrent report requests reuse the same PDF.
-    frappe.db.sql("SELECT name FROM `tabKSEB Grid Check` WHERE name=%s FOR UPDATE", (grid_name,))
-    files = frappe.get_all("File", filters={"attached_to_doctype": "KSEB Grid Check",
-                           "attached_to_name": grid_name, "is_folder": 0},
-                           fields=["file_name", "file_url"], order_by="creation desc, name desc")
-    existing = select_annexure(files, number)
-    if existing:
-        return existing.file_url
     grid.check_permission("write")
+    # Fresh rendering is deliberate: old filename-matched PDFs may be stale.
+    frappe.db.sql("SELECT name FROM `tabKSEB Grid Check` WHERE name=%s FOR UPDATE", (grid_name,))
     generate = frappe.get_attr(f"wahni_kseb.api.generate_annexure{number}")
-    # Reuse the existing validators, templates and attachment behaviour.
-    return generate(kseb_grid_check=grid_name)["file_url"]
+    return generate(kseb_grid_check=grid_name)
 
 
 def _snapshot(context):
+    context["snapshot_version"] = 2
     output = BytesIO()
     with ZipFile(output, "w", ZIP_DEFLATED) as archive:
         for index, source in enumerate(context["sources"]):
             if source["category"] in AGREEMENT_SECTIONS:
                 continue
-            if not source.get("url") and not source.get("invoice") and not source.get("annexure_number"):
+            if not any(source.get(key) for key in ("url", "invoice", "annexure_number", "document_type")):
                 continue
             try:
                 if source.get("annexure_number"):
-                    source["url"] = _ensure_annexure(source["name"], source["annexure_number"])
-                if source.get("invoice"):
+                    generated = _ensure_annexure(source["name"], source["annexure_number"])
+                    source["url"] = generated["file_url"]
+                    source["resolved_inputs"] = generated.get("resolved_inputs")
+                if source.get("document_type"):
+                    doc = frappe.get_doc(source["doctype"], source["name"])
+                    content, resolved = render_document(doc)
+                    source["resolved_inputs"] = resolved
+                    source["missing_fields"] = resolved["missing_fields"]
+                    context["warnings"].extend(resolved["warnings"])
+                    context["permissions"].extend(resolved["sources"])
+                    source["sha256"] = hashlib.sha256(content).hexdigest()
+                elif source.get("invoice"):
                     invoice = frappe.get_doc("Sales Invoice", source["invoice"])
                     invoice.check_permission("read")
                     invoice.check_permission("print")
@@ -176,7 +190,7 @@ def _snapshot(context):
                 source["archive_path"] = f"sources/{index:02d}"
                 archive.writestr(source["archive_path"], content)
             except Exception as exc:
-                action = "generate annexure" if source.get("annexure_number") else "read document"
+                action = "generate document" if source.get("annexure_number") or source.get("document_type") else "read document"
                 source["reason"] = f"Could not {action}: {exc}"
         archive.writestr("context.json", json.dumps(context, default=str))
     return output.getvalue()
@@ -215,7 +229,7 @@ def build_report(report_name):
             for ref in context["permissions"]:
                 frappe.get_doc(ref["doctype"], ref["name"]).check_permission("read")
             result["warnings"] = context["warnings"]
-            values = form_values(context)
+            values = form_values(context) if context.get("snapshot_version", 1) < 2 else {}
             sources = {source["category"]: source for source in context["sources"]}
             qet = sources.get("SLD Template", {})
             if qet.get("archive_path"):
@@ -248,10 +262,12 @@ def build_report(report_name):
                 try:
                     frappe.get_doc(source["doctype"], source["name"]).check_permission("read")
                     content = select_pdf_pages(archive.read(source["archive_path"]), source.get("page_from"), source.get("page_to"))
-                    if category in FORM_SECTIONS and source["origin"] == "Library":
+                    if context.get("snapshot_version", 1) < 2 and category in FORM_SECTIONS and source["origin"] == "Library":
                         content, missing = fill_form(content, values[category])
                         if missing:
                             result["missing_fields"][category] = missing
+                    if source.get("missing_fields"):
+                        result["missing_fields"][category] = source["missing_fields"]
                     # Validate this section's form import before adding it to the final set.
                     merge_pdfs([(category, content)])
                     parts.append((category, content))
@@ -264,7 +280,7 @@ def build_report(report_name):
             _save_output(report, "Project-Report.pdf", content, "report_pdf")
         status = "Completed with omissions" if result["omitted"] or result["missing_fields"] or result["warnings"] else "Completed"
         report.db_set({"status": status, "result": json.dumps(result), "progress": 100,
-                       "message": "Report ready. Blank form fields can be completed in a PDF editor."})
+                       "message": "Report ready. Edit Project Documents or the linked source records to update blank information, then generate again."})
     except Exception as exc:
         frappe.db.rollback()
         frappe.log_error(frappe.get_traceback(), "Solar Project Report")

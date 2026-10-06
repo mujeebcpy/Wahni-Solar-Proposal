@@ -1,0 +1,210 @@
+{
+ "doctype": "DocType",
+ "name": "Solar Completion Certificate",
+ "module": "Solar Project",
+ "engine": "InnoDB",
+ "autoname": "format:SPD-{#####}",
+ "title_field": "project",
+ "search_fields": "project",
+ "track_changes": 1,
+ "default_print_format": "Solar Completion Certificate",
+ "field_order": [
+  "project",
+  "source_details",
+  "source_preview",
+  "document_details",
+  "dc_db",
+  "ac_db",
+  "earthing_quantity",
+  "other_equipment",
+  "overhead_lines_underground_cables_drawing_number",
+  "earthing_standard",
+  "whole_installation_insulation_resistance",
+  "between_conductors_resistance",
+  "conductor_to_earth_resistance",
+  "earthing_electrode_resistance",
+  "installation_earthing_resistance",
+  "electrical_inspector_approval_reference",
+  "supply_voltage",
+  "document_date",
+  "supervisor_name",
+  "contractor_name"
+ ],
+ "fields": [
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "source_details",
+   "fieldtype": "Section Break",
+   "label": "Current Project Details"
+  },
+  {
+   "fieldname": "source_preview",
+   "fieldtype": "HTML",
+   "label": "Source Details"
+  },
+  {
+   "fieldname": "document_details",
+   "fieldtype": "Section Break",
+   "label": "Editable Document Details"
+  },
+  {
+   "fieldname": "dc_db",
+   "fieldtype": "Data",
+   "label": "Dc Db",
+   "default": "NA"
+  },
+  {
+   "fieldname": "ac_db",
+   "fieldtype": "Data",
+   "label": "Ac Db",
+   "default": "1"
+  },
+  {
+   "fieldname": "earthing_quantity",
+   "fieldtype": "Data",
+   "label": "Earthing Quantity",
+   "default": "3"
+  },
+  {
+   "fieldname": "other_equipment",
+   "fieldtype": "Data",
+   "label": "Other Equipment",
+   "default": "NA"
+  },
+  {
+   "fieldname": "overhead_lines_underground_cables_drawing_number",
+   "fieldtype": "Small Text",
+   "label": "Overhead Lines Underground Cables Drawing Number"
+  },
+  {
+   "fieldname": "earthing_standard",
+   "fieldtype": "Data",
+   "label": "Earthing Standard",
+   "default": "As per IS:3043/87"
+  },
+  {
+   "fieldname": "whole_installation_insulation_resistance",
+   "fieldtype": "Data",
+   "label": "Whole Installation Insulation Resistance"
+  },
+  {
+   "fieldname": "between_conductors_resistance",
+   "fieldtype": "Data",
+   "label": "Between Conductors Resistance"
+  },
+  {
+   "fieldname": "conductor_to_earth_resistance",
+   "fieldtype": "Data",
+   "label": "Conductor To Earth Resistance"
+  },
+  {
+   "fieldname": "earthing_electrode_resistance",
+   "fieldtype": "Data",
+   "label": "Earthing Electrode Resistance"
+  },
+  {
+   "fieldname": "installation_earthing_resistance",
+   "fieldtype": "Data",
+   "label": "Installation Earthing Resistance"
+  },
+  {
+   "fieldname": "electrical_inspector_approval_reference",
+   "fieldtype": "Data",
+   "label": "Electrical Inspector Approval Reference",
+   "default": "Not Applicable"
+  },
+  {
+   "fieldname": "supply_voltage",
+   "fieldtype": "Data",
+   "label": "Supply Voltage"
+  },
+  {
+   "fieldname": "document_date",
+   "fieldtype": "Date",
+   "label": "Document Date"
+  },
+  {
+   "fieldname": "supervisor_name",
+   "fieldtype": "Data",
+   "label": "Supervisor Name"
+  },
+  {
+   "fieldname": "contractor_name",
+   "fieldtype": "Data",
+   "label": "Contractor Name"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Projects Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Projects User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 0
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 0
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "creation": "2026-10-01 18:56:45.000000",
+ "modified": "2026-10-01 18:56:45.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator"
+}

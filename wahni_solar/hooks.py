@@ -54,7 +54,8 @@ doctype_js = {
 after_install = "wahni_solar.solar_project.setup.after_migrate"
 after_migrate = "wahni_solar.solar_project.setup.after_migrate"
 
-# "Solar Proposal" print format PDFs (PDF Generator "wkhtmltopdf + proposal artwork") get page artwork stamped on
+# Print formats in proposal_pdf.FORMATS (PDF Generator "wkhtmltopdf + proposal artwork") get page artwork
+# and/or page numbers stamped on: Solar Proposal, Customer Vendor Agreement, Customer KSEB Agreement
 pdf_generator = ["wahni_solar.wahni_solar_proposal.proposal_pdf.get_pdf"]
 doc_events = {"Project": {"validate": "wahni_solar.solar_project.api.validate_project"}}
 has_permission = {"Project Report": "wahni_solar.solar_project.permissions.has_report_permission"}
@@ -268,3 +269,13 @@ override_doctype_dashboards = {
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
+
+# Project-linked printable records share the Project access boundary.
+has_permission['Customer Vendor Agreement'] = "wahni_solar.solar_project.project_documents.has_document_permission"
+permission_query_conditions['Customer Vendor Agreement'] = "wahni_solar.solar_project.project_documents.customer_vendor_agreement_query"
+has_permission['Customer KSEB Agreement'] = "wahni_solar.solar_project.project_documents.has_document_permission"
+permission_query_conditions['Customer KSEB Agreement'] = "wahni_solar.solar_project.project_documents.customer_kseb_agreement_query"
+has_permission['Solar Installation Checklist'] = "wahni_solar.solar_project.project_documents.has_document_permission"
+permission_query_conditions['Solar Installation Checklist'] = "wahni_solar.solar_project.project_documents.solar_installation_checklist_query"
+has_permission['Solar Completion Certificate'] = "wahni_solar.solar_project.project_documents.has_document_permission"
+permission_query_conditions['Solar Completion Certificate'] = "wahni_solar.solar_project.project_documents.solar_completion_certificate_query"

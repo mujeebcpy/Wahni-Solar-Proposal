@@ -9,6 +9,7 @@ import frappe
 from frappe.utils import cint
 
 from wahni_solar.solar_project.constants import ANNEXURES, LEGACY_PANEL_CATEGORIES, OPTIONAL_SECTIONS, PANEL_DOCUMENT, SECTIONS
+from wahni_solar.solar_project.project_documents import DOCUMENT_TYPES, PRINT_FORMATS
 
 
 def read_file(url):
@@ -115,7 +116,7 @@ def resolve_customer_address(customer, linked, warnings):
     return None
 
 
-def resolve_context(project_name, categories=None):
+def resolve_context(project_name, categories=None, include_sources=True):
     categories = tuple(categories) if categories is not None else (*SECTIONS, "SLD Template")
     project = frappe.get_doc("Project", project_name)
     project.check_permission("read")
@@ -164,9 +165,9 @@ def resolve_context(project_name, categories=None):
             if selected:
                 bank = linked("Bank Account", selected.name)
             elif accounts:
-                warnings.append("Several customer bank accounts match; template bank values were retained.")
+                warnings.append("Several customer bank accounts match; bank details are left blank.")
         except frappe.PermissionError:
-            warnings.append("Customer bank information is not accessible; template bank values were retained.")
+            warnings.append("Customer bank information is not accessible; bank details are left blank.")
 
     invoice = linked("Sales Invoice", project.get("custom_report_sales_invoice")) if "Sales Invoice" in categories else None
     if invoice and (invoice.project != project.name or invoice.customer != project.customer
@@ -203,28 +204,30 @@ def resolve_context(project_name, categories=None):
     }
     library = frappe.get_list("Project Report Document", filters={"enabled": 1},
                               fields=["name", "category", "brand", "model", "panel_watt_peak", "file", "page_from", "page_to"],
-                              limit_page_length=0)
+                              limit_page_length=0) if include_sources and any(
+                                  category not in (*ANNEXURES, *DOCUMENT_TYPES, "Sales Invoice") for category in categories
+                              ) else []
     overrides = {row.category: row.file for row in project.get("custom_report_attachments", []) if row.file}
     if PANEL_DOCUMENT in categories and (any(category in overrides for category in LEGACY_PANEL_CATEGORIES) or any(
             entry.category in LEGACY_PANEL_CATEGORIES for entry in library)):
         warnings.append("Separate Panel Datasheet/Panel BIS entries are no longer selected. Upload a Panel Datasheet and BIS PDF with its brand and Wp, or a combined Project override.")
     items = project.get("custom_table_project_bom") or (proposal.get("table_proposal_bom") if proposal else [])
     item_codes = {row.item_code for row in items or [] if row.item_code}
-    if "Customer Vendor Agreement" in categories:
+    if "Customer Vendor Agreement" in categories or (not include_sources and "Check List" in categories):
         equipment = [linked("Item", code) for code in sorted(item_codes)]
         panels = [item for item in equipment if item.item_group == "Panel"]
         if not panel_item and len(panels) == 1:
             context["panel"] = fields(panels[0], "brand custom_model custom_panel_watt_peak")
         elif not panel_item and len(panels) > 1:
-            warnings.append("Several panel Items match. Select the Project's Panel Item for the agreement.")
+            warnings.append("Several panel Items match. Select the Project's Panel Item for this document.")
         inverters = [item for item in equipment if item.item_group in ("Microinverters", "Inverters", "Inverter")]
         if len(inverters) == 1:
             context["inverter"] = fields(inverters[0], "brand custom_model custom_rated_capacity")
         elif len(inverters) > 1:
-            warnings.append("Several inverter Items match; complete the agreement's inverter details manually.")
-    grid_files = frappe.get_all("File", filters={"attached_to_doctype": "KSEB Grid Check",
-                               "attached_to_name": grid.name, "is_folder": 0},
-                               fields=["file_name", "file_url"], order_by="creation desc, name desc") if grid and any(category in ANNEXURES for category in categories) else []
+            warnings.append("Several inverter Items match; inverter model and rating are left blank. Review the equipment selection on the Project or Solar Proposal.")
+    context["grid_choices"] = grids
+    if not include_sources:
+        return context
     sources = []
     for category in categories:
         source = {"category": category}
@@ -232,12 +235,11 @@ def resolve_context(project_name, categories=None):
             source.update(url=overrides[category], origin="Project upload", doctype="Project", name=project.name)
         elif category in ANNEXURES:
             if grid:
-                match = select_annexure(grid_files, ANNEXURES[category])
-                if match:
-                    source.update(url=match.file_url, origin="KSEB Grid Check", doctype="KSEB Grid Check", name=grid.name)
-                else:
-                    source.update(annexure_number=ANNEXURES[category], origin="KSEB Grid Check",
-                                  doctype="KSEB Grid Check", name=grid.name)
+                source.update(annexure_number=ANNEXURES[category], origin="KSEB Grid Check",
+                              doctype="KSEB Grid Check", name=grid.name)
+        elif category in DOCUMENT_TYPES:
+            source.update(document_type=DOCUMENT_TYPES[category], print_format=PRINT_FORMATS[category],
+                          origin="Print Format", project=project.name)
         elif category == "Sales Invoice":
             if invoice:
                 source.update(invoice=invoice.name, origin="Sales Invoice", doctype="Sales Invoice", name=invoice.name)
@@ -251,7 +253,7 @@ def resolve_context(project_name, categories=None):
                     source.update(brand=entry.brand, panel_watt_peak=entry.panel_watt_peak)
             elif reason:
                 source["reason"] = reason
-        if not source.get("url") and not source.get("invoice") and not source.get("annexure_number"):
+        if not any(source.get(key) for key in ("url", "invoice", "annexure_number", "document_type")):
             source.setdefault("reason", "No document available.")
         sources.append(source)
     context["sources"] = sources
@@ -262,8 +264,8 @@ def resolve_context(project_name, categories=None):
 def public_context(context):
     """No bank details or internal snapshot data are sent to the Project dialog."""
     return {"grid_choices": context["grid_choices"], "warnings": context["warnings"],
-            "documents": [{"category": source["category"], "available": bool(source.get("url") or source.get("invoice") or source.get("annexure_number")),
-                           "will_generate": bool(source.get("annexure_number")),
+            "documents": [{"category": source["category"], "available": any(bool(source.get(key)) for key in ("url", "invoice", "annexure_number", "document_type")),
+                           "will_generate": bool(source.get("annexure_number") or source.get("document_type")),
                            "origin": source.get("origin"), "reason": source.get("reason"),
                            "optional": source["category"] in OPTIONAL_SECTIONS}
                           for source in context["sources"] if source["category"] in SECTIONS]}

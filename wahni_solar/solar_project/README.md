@@ -5,16 +5,19 @@ and `pypdf>=6.13.3,<7`.
 
 ## Deployment
 
-After installing the updated app and its Python dependencies in the target bench:
+Deploy matching versions of `wahni_kseb` and `wahni_solar` and install their Python dependencies before migrating the target bench:
 
 ```sh
 bench --site YOUR_SITE migrate
+bench build --app wahni_kseb
 bench build --app wahni_solar
 bench restart
 ```
 
-Migration creates the Project fields and seeds the supplied documents as private
-library attachments. It does not overwrite existing library records. A worker
+Migration creates the Project fields, four Project document DocTypes, seven print
+formats, and the Project Documents workspace group. It seeds static library PDFs
+and QET templates only; fillable templates are no longer seeded or selected.
+Existing library records and historical files are preserved. A worker
 serving the `long` queue must be running. The site's file size limit must accommodate
 the combined report and its input archive; adjust it if generation reports a size error.
 
@@ -86,66 +89,69 @@ Previously queued snapshots finish using their original separate sections.
 
 ## Generating and editing
 
-Save the Project and open **Generate**, which contains **SLD**, **Customer Vendor
-Agreement**, **KSEB Agreement**, and **Generate Project Report**. Standalone drawings
-and agreements are saved as private Project attachments and offered for download.
-They generate only the selected document, without generating annexures or invoices.
-The latest full report generation and
-its results are available on Project and in **Report History**. Inputs are captured
-before queuing, so later library replacements cannot change a running generation.
+**Generate → Generate Project Report** automatically creates one record in each of
+**Customer Vendor Agreement**, **Customer KSEB Agreement**, **Solar Installation
+Checklist**, and **Solar Completion Certificate** for the Project. A required,
+unique Project link and a Project row lock prevent duplicate records. Generation
+reuses existing records and never resets saved edits or deliberately cleared defaults.
 
-Both agreement categories remain available in **Project Report Document** and the
-Project's **Report Documents** table. Migration seeds the supplied fillable templates
-without replacing existing library uploads. Neither agreement category is merged into
-the final report PDF or listed in its omissions/missing-field warnings, including when
-a Project override is present. Download the customer agreement for signing and handle
-the signed copy separately; the KSEB agreement is a separate submission document.
+Each record stores only document-specific inputs. Customer names/addresses,
+capacity, price, equipment, contacts, and bank details are resolved from the linked
+records when printing. The form shows a read-only preview and links to those
+sources. Correct shared information at its source; use the document form for
+signatories, dates, declarations, serial numbers, settings, and measured readings.
+Template choices/settings are editable defaults. Sample customer identities,
+serials, and measured resistance values from the original PDFs are not defaults.
+Agreement dates default on creation and are not recalculated when printing.
 
-Agreements use the standard Customer name and primary/unambiguous linked Address,
-falling back to Grid Check name/address when unavailable. Consumer number and electrical
-section come from the Grid Check; total system capacity and price come from Solar
-Proposal capacity and project cost. Panel make/model come from the selected Project
-Panel Item, or a sole Panel Item in the material list. The per-panel capacity uses
-that Item's **Watt Peak (Wp)**. Inverter make/model/rated capacity come from a
-sole inverter Item in the Project material list, falling back to the proposal BOM when
-the material list is empty. Multiple inverter Items leave those fields for manual
-completion. Rated capacity retains the Item value; its field does not specify a unit.
-Date fields use the generation date in the site's timezone and remain editable;
-signing place is left blank. Project agreement uploads are preserved as-is.
+The **Solar Project → Project Documents** workspace group opens the four lists and
+KSEB Grid Check. Project's dashboard and **Project Documents** menu open its forms.
+No manual form preparation is required before report generation. Forms remain
+editable and do not require submission.
 
-Available PDFs are merged in the fixed order in `constants.py`, with PDF bookmarks.
-Missing documents are listed. Missing optional cover/end pages and absent invoices
-are silently skipped. If several submitted, non-return invoices match the Project
-and customer, select **Report Sales Invoice**; otherwise that section is skipped.
+Project's **Generate** menu provides SLD, both agreements, Check List, Project
+Completion Report, and the complete report. Each PDF action selects its mapped
+print format automatically and saves a private Project attachment. KSEB Grid
+Check's Annexure I/II/III buttons save pending edits and render the corresponding
+format as private Grid Check attachments. Native annexures use bundled Manjari
+Regular/Bold fonts; no external font download is needed at print time.
 
-Checklist and completion forms remain editable inside the merged PDF; they are not
-saved or offered as separate generated attachments. Only available data replaces
-form values. Fields with no available data retain their template values and defaults.
-The customer Bank Account's Branch Code supplies IFSC. Downloaded edits do not update
-ERPNext; an externally completed individual PDF can still be uploaded as a Project override.
+Reports include fresh annexures, checklist, and completion certificate in the
+existing section order, together with conditionally selected static uploads.
+Agreements remain standalone. An explicitly selected Project Report Documents
+upload takes precedence, allowing a signed or externally completed copy to be
+included. Old Grid Check attachment filenames are no longer used to select an
+annexure implicitly. A missing Grid Check is reported as an omission, not created.
 
-Annexures are selected from the linked Grid Check's attachments, newest first. The
-lookup accepts numeric/Roman annexure numbers, spaces, underscores, and filename
-suffixes rather than requiring an exact generated filename. If an annexure has no
-existing attachment or Project override, the existing KSEB generator creates it and
-attaches it to the Grid Check before it is included in the report snapshot. Generation
-requires Grid Check write permission and the same mandatory fields as its Annexure
-buttons. A generation failure is listed as an omission without blocking other documents.
+Rendering uses Frappe's standard HTML/Jinja print pipeline. At generation time,
+resolved values and rendered PDF bytes are frozen in the private report snapshot.
+Later source/record edits affect future prints, not queued or historical reports.
+The worker merges the frozen PDFs. Missing fields produce warnings with edit links;
+existing mandatory annexure validation and partial-report handling are retained.
 
-**Generate Project Report** always attempts to generate and attach the editable SLD
-`.qet`, even if **Generate → SLD** has never been used. The generated QET drawing replaces customer/title-block properties; it does not
-redesign the circuit or adjust wiring and equipment. Open it in QElectroTech, review
-the drawing, export a PDF, and upload it as **Single Line Diagram**. Generation skips
-that PDF section until an exported PDF is available.
+The consumer phase comes from Grid Check `phase`; plant connection type in the
+SLD continues to come from Solar Package `connection_type`. Checklist/annexure
+capacity comes from Grid Check; agreement capacity and cost come from Solar
+Proposal. Customer address and equipment selection preserve the existing fallback
+and ambiguity rules. Bank data is resolved only when permitted.
 
-The SLD plant connection type comes from the linked Solar Package's `connection_type`,
-captured in the report snapshot. The Solar Proposal print format uses the same package
-field. The Grid Check's `phase` supplies the customer supply phase in the SLD, checklist,
-and completion certificate.
+SLD generation still personalizes a QElectroTech `.qet` file. Open it in
+QElectroTech, review/export the drawing as PDF, and select that PDF as the Project's
+Single Line Diagram override. Its location continues to use the Customer Address
+City/County, falling back to the KSEB address.
 
-The QET location uses the customer's primary Address (or a sole/unambiguous linked
-address), joining non-empty City and County values with `, `. Country is not used.
-If no usable address values are available, it falls back to the KSEB address.
+### Upgrade compatibility
+
+Historical PDFs and explicit overrides are not rewritten or imported into new
+DocTypes. All four records are created lazily on the next generation request.
+Existing Grid Checks receive intentional static annexure defaults through a
+one-time `wahni_kseb` patch; later edits/cleared values are never backfilled again.
+
+Snapshots without `snapshot_version` retain their legacy worker behavior, so
+already queued reports can finish. Form filling is retained only for these old
+snapshots; version 2 snapshots do not call it. Drain all old queued jobs before
+removing this compatibility branch in a future release. Keep `pypdf` for PDF
+merging and proposal artwork processing.
 
 Input archives and output files are private. Report access follows Project read
 permissions. Generation requires Project write permission and reads source documents
@@ -177,8 +183,8 @@ python -m unittest wahni_solar.solar_project.tests.test_generation -v
 
 | Suite | Coverage |
 | --- | --- |
-| `test_documents.py` | Agreement fields and dates, editable PDFs, page ordering, SLD values |
-| `test_sources.py` | Customer address fallback, Items, library selection, annexure filenames |
+| `test_documents.py` | Field mapping, legacy queued-snapshot form support, merging, SLD values |
+| `test_sources.py` | Customer address fallback, Items, library selection, fresh annexures and overrides |
 | `test_api.py` | Standalone actions, request permissions, duplicate requests, snapshots |
 | `test_generation.py` | Report outputs, agreement exclusion, upload preservation, failures |
 | `test_permissions.py` | Report deletion permissions and latest-report links |
@@ -193,3 +199,17 @@ obsolete field migrations and historical library compatibility checks are exclud
 After deployment, verify the Generate menu, actual worker progress, file permissions,
 and library replacement workflow on a test Project. Those site/browser checks are
 outside this unit suite.
+
+Native document tests:
+
+```sh
+python -m unittest wahni_solar.solar_project.tests.test_project_documents -v
+python -m unittest wahni_kseb.annexure.test_printing -v
+```
+
+On a staging site, run migration and generate a report twice from the same Project.
+Confirm exactly four records exist, edit a default (including clearing it), and
+regenerate. Change a source value and verify the next PDF changes while the earlier
+report stays unchanged. Also check a restricted user's list/print access and a
+signed Project override. These database/browser checks are separate from the
+site-independent regression suite.

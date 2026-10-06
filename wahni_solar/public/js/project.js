@@ -33,9 +33,12 @@
             `<li>${escape(row.category)}: ${escape(row.reason)}</li>`
         ).join("");
         const warnings = (result.warnings || []).map((value) => `<li>${escape(value)}</li>`).join("");
-        const blanks = Object.entries(result.missing_fields || {}).map(([category, fields]) =>
-            `<li>${escape(category)}: ${fields.length} ${__("fields left blank")}</li>`
-        ).join("");
+        const blanks = Object.entries(result.missing_fields || {}).map(([category, fields]) => {
+            const source = (result.sources || []).find(row => row.category === category);
+            const edit = source?.doctype && source?.name
+                ? ` <a href="/app/${frappe.router.slug(source.doctype)}/${encodeURIComponent(source.name)}">${__("Edit details")}</a>` : "";
+            return `<li>${escape(category)}: ${fields.length} ${__("fields left blank")}${edit}</li>`;
+        }).join("");
         frappe.msgprint({
             title: __(report.status),
             indicator: report.status === "Failed" ? "red" : report.status === "Completed" ? "green" : "orange",
@@ -95,7 +98,7 @@
             });
             if (frm.is_new()) return;
             if (frm.perm[0]?.write) {
-                for (const category of ["SLD", "Customer Vendor Agreement", "KSEB Agreement"]) {
+                for (const category of ["SLD", "Customer Vendor Agreement", "KSEB Agreement", "Check List", "Project Completion Report"]) {
                     frm.add_custom_button(__(category), async () => {
                         if (frm.__report_starting) return;
                         frm.__report_starting = true;
@@ -108,17 +111,29 @@
                             });
                             if (!message) return;
                             await frm.reload_doc();
+                            const editLink = message.document
+                                ? `<p><a href="/app/${frappe.router.slug(message.document.doctype)}/${encodeURIComponent(message.document.name)}">${__("Edit document details")}</a></p>` : "";
                             const warnings = (message.warnings || []).map((value) =>
                                 `<li>${escape(value)}</li>`).join("");
                             const blanks = message.missing_fields?.length
-                                ? `<p>${__("{0} fields left blank; complete them in {1}.", [message.missing_fields.length, category === "SLD" ? "QElectroTech" : __("a PDF editor")])}</p>` : "";
+                                ? `<p>${__("{0} fields left blank; complete them in {1}.", [message.missing_fields.length, category === "SLD" ? "QElectroTech" : __("the Project document or its linked source records")])}</p>` : "";
                             frappe.msgprint({
                                 title: __(category),
                                 message: `<p><a href="${escape(message.file_url)}" target="_blank" rel="noopener">${__("Download {0}", [__(category)])}</a></p>` +
-                                    blanks + (warnings ? `<ul>${warnings}</ul>` : ""),
+                                    editLink + blanks + (warnings ? `<ul>${warnings}</ul>` : ""),
                             });
                         } finally { frm.__report_starting = false; }
                     }, __("Generate"));
+                }
+                for (const category of ["Customer Vendor Agreement", "KSEB Agreement", "Check List", "Project Completion Report"]) {
+                    frm.add_custom_button(__(category), async () => {
+                        if (frm.is_dirty()) await frm.save();
+                        const {message} = await frappe.call({
+                            method: "wahni_solar.solar_project.project_documents.open_project_document",
+                            args: {project: frm.doc.name, category}, freeze: true
+                        });
+                        if (message) frappe.set_route("Form", message.doctype, message.name);
+                    }, __("Project Documents"));
                 }
                 frm.add_custom_button(__("Generate Project Report"), async () => {
                     if (frm.__report_starting) return;

@@ -1,0 +1,148 @@
+{
+ "doctype": "DocType",
+ "name": "Customer Vendor Agreement",
+ "module": "Solar Project",
+ "engine": "InnoDB",
+ "autoname": "format:SPD-{#####}",
+ "title_field": "project",
+ "search_fields": "project",
+ "track_changes": 1,
+ "default_print_format": "Customer Vendor Agreement",
+ "field_order": [
+  "project",
+  "source_details",
+  "source_preview",
+  "document_details",
+  "agreement_date",
+  "vendor_signatory",
+  "vendor_designation",
+  "witness_1",
+  "witness_2",
+  "module_efficiency"
+ ],
+ "fields": [
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "source_details",
+   "fieldtype": "Section Break",
+   "label": "Current Project Details"
+  },
+  {
+   "fieldname": "source_preview",
+   "fieldtype": "HTML",
+   "label": "Source Details"
+  },
+  {
+   "fieldname": "document_details",
+   "fieldtype": "Section Break",
+   "label": "Editable Document Details"
+  },
+  {
+   "fieldname": "agreement_date",
+   "fieldtype": "Date",
+   "label": "Agreement Date",
+   "default": "Today"
+  },
+  {
+   "fieldname": "vendor_signatory",
+   "fieldtype": "Data",
+   "label": "Vendor Signatory",
+   "default": "Sooraj K"
+  },
+  {
+   "fieldname": "vendor_designation",
+   "fieldtype": "Data",
+   "label": "Vendor Designation",
+   "default": "Director"
+  },
+  {
+   "fieldname": "witness_1",
+   "fieldtype": "Data",
+   "label": "Witness 1"
+  },
+  {
+   "fieldname": "witness_2",
+   "fieldtype": "Data",
+   "label": "Witness 2"
+  },
+  {
+   "fieldname": "module_efficiency",
+   "fieldtype": "Data",
+   "label": "Module Efficiency",
+   "default": "19.93%"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Projects Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Projects User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 0
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 0
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "creation": "2026-10-01 18:56:45.000000",
+ "modified": "2026-10-01 18:56:45.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator"
+}

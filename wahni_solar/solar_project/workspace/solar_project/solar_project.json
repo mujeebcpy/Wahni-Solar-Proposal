@@ -8,7 +8,7 @@
  "public": 1,
  "is_hidden": 0,
  "sequence_id": 30,
- "content": "[{\"id\": \"solar-header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Solar Project</span>\", \"col\": 12}}, {\"id\": \"solar-shortcut-0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Projects\", \"col\": 3}}, {\"id\": \"solar-shortcut-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Shared Report Documents\", \"col\": 3}}, {\"id\": \"solar-shortcut-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Report History\", \"col\": 3}}, {\"id\": \"solar-shortcut-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Report Settings\", \"col\": 3}}]",
+ "content": "[{\"id\": \"solar-header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Solar Project</span>\", \"col\": 12}}, {\"id\": \"solar-shortcut-0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Projects\", \"col\": 3}}, {\"id\": \"solar-shortcut-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Shared Report Documents\", \"col\": 3}}, {\"id\": \"solar-shortcut-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Report History\", \"col\": 3}}, {\"id\": \"solar-shortcut-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Report Settings\", \"col\": 3}}, {\"id\": \"project-documents\", \"type\": \"card\", \"data\": {\"card_name\": \"Project Documents\", \"col\": 4}}]",
  "shortcuts": [
   {
    "label": "Projects",
@@ -35,6 +35,46 @@
    "doc_view": ""
   }
  ],
- "links": [],
- "roles": []
+ "links": [
+  {
+   "type": "Card Break",
+   "label": "Project Documents",
+   "link_count": 5
+  },
+  {
+   "type": "Link",
+   "label": "Customer Vendor Agreement",
+   "link_type": "DocType",
+   "link_to": "Customer Vendor Agreement"
+  },
+  {
+   "type": "Link",
+   "label": "Customer KSEB Agreement",
+   "link_type": "DocType",
+   "link_to": "Customer KSEB Agreement"
+  },
+  {
+   "type": "Link",
+   "label": "Solar Installation Checklist",
+   "link_type": "DocType",
+   "link_to": "Solar Installation Checklist"
+  },
+  {
+   "type": "Link",
+   "label": "Solar Completion Certificate",
+   "link_type": "DocType",
+   "link_to": "Solar Completion Certificate"
+  },
+  {
+   "type": "Link",
+   "label": "KSEB Grid Check",
+   "link_type": "DocType",
+   "link_to": "KSEB Grid Check"
+  }
+ ],
+ "roles": [],
+ "creation": "2026-10-01 18:56:45.000000",
+ "modified": "2026-10-01 18:56:45.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator"
 }
