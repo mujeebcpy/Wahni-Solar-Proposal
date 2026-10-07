@@ -1,0 +1,275 @@
+{
+ "doctype": "DocType",
+ "name": "Solar API Account",
+ "module": "Solar Monitor",
+ "issingle": 0,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "account_label",
+   "label": "Account Label",
+   "fieldtype": "Data",
+   "reqd": 1
+  },
+  {
+   "fieldname": "provider",
+   "label": "Provider",
+   "fieldtype": "Select",
+   "options": "Deye\nEnphase\nSolarman",
+   "default": "Deye",
+   "reqd": 1
+  },
+  {
+   "fieldname": "enabled",
+   "label": "Enabled",
+   "fieldtype": "Check",
+   "default": 1
+  },
+  {
+   "fieldname": "region",
+   "label": "Region",
+   "fieldtype": "Select",
+   "options": "India\nEurope\nAmericas",
+   "default": "India"
+  },
+  {
+   "fieldname": "deye_credentials",
+   "label": "Deye Credentials",
+   "fieldtype": "Section Break",
+   "depends_on": "eval:doc.provider==='Deye' || doc.provider==='Solarman'"
+  },
+  {
+   "fieldname": "app_id",
+   "label": "App Id",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "app_secret",
+   "label": "App Secret",
+   "fieldtype": "Password"
+  },
+  {
+   "fieldname": "email",
+   "label": "Email",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "password",
+   "label": "Password",
+   "fieldtype": "Password",
+   "description": "Normal login password. Deye SHA-256 hashing happens only on the server."
+  },
+  {
+   "fieldname": "company_id",
+   "label": "Company Id",
+   "fieldtype": "Data",
+   "depends_on": "eval:doc.provider==='Deye'"
+  },
+  {
+   "fieldname": "company_name",
+   "label": "Company Name",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "depends_on": "eval:doc.provider==='Deye'"
+  },
+  {
+   "fieldname": "company_details_fetched_at",
+   "label": "Company Details Fetched At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company_lookup_attempted",
+   "label": "Company Lookup Attempted",
+   "fieldtype": "Check",
+   "hidden": 1
+  },
+  {
+   "fieldname": "company_lookup_error",
+   "label": "Company Lookup Error",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "enphase_credentials",
+   "label": "Enphase Credentials",
+   "fieldtype": "Section Break",
+   "depends_on": "eval:doc.provider==='Enphase'"
+  },
+  {
+   "fieldname": "api_key",
+   "label": "Api Key",
+   "fieldtype": "Password"
+  },
+  {
+   "fieldname": "client_id",
+   "label": "Client Id",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "client_secret",
+   "label": "Client Secret",
+   "fieldtype": "Password"
+  },
+  {
+   "fieldname": "redirect_uri",
+   "label": "Redirect Uri",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "authentication",
+   "label": "Authentication",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "access_token",
+   "label": "Access Token",
+   "fieldtype": "Password",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "refresh_token",
+   "label": "Refresh Token",
+   "fieldtype": "Password",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "token_type",
+   "label": "Token Type",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "expires_at",
+   "label": "Expires At",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "scope",
+   "label": "Scope",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "provider_user_id",
+   "label": "Provider User Id",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "last_authentication",
+   "label": "Last Authentication",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "connection_status",
+   "label": "Connection Status",
+   "fieldtype": "Select",
+   "options": "\nNot connected\nConnected\nError",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "authentication_error",
+   "label": "Authentication Error",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "last_successful_sync",
+   "label": "Last Successful Sync",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "sync_status",
+   "label": "Sync Status",
+   "fieldtype": "Select",
+   "options": "\nQueued\nRunning\nCompleted\nFailed",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "sync_error",
+   "label": "Sync Error",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "sync_started_at",
+   "label": "Sync Started At",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "request_count",
+   "label": "Request Count",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "hidden": 0
+  }
+ ],
+ "field_order": [
+  "account_label",
+  "provider",
+  "enabled",
+  "region",
+  "deye_credentials",
+  "app_id",
+  "app_secret",
+  "email",
+  "password",
+  "company_id",
+  "company_name",
+  "company_details_fetched_at",
+  "company_lookup_attempted",
+  "company_lookup_error",
+  "enphase_credentials",
+  "api_key",
+  "client_id",
+  "client_secret",
+  "redirect_uri",
+  "authentication",
+  "access_token",
+  "refresh_token",
+  "token_type",
+  "expires_at",
+  "scope",
+  "provider_user_id",
+  "last_authentication",
+  "connection_status",
+  "authentication_error",
+  "last_successful_sync",
+  "sync_status",
+  "sync_error",
+  "sync_started_at",
+  "request_count"
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "autoname": "field:account_label",
+ "naming_rule": "By fieldname"
+}

@@ -1,0 +1,51 @@
+{
+ "doctype": "DocType",
+ "name": "Solar Monitor Settings",
+ "module": "Solar Monitor",
+ "issingle": 1,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "refresh_cooldown",
+   "label": "Refresh Cooldown",
+   "fieldtype": "Int",
+   "default": 120
+  },
+  {
+   "fieldname": "token_renewal_margin",
+   "label": "Token Renewal Margin",
+   "fieldtype": "Int",
+   "default": 300
+  },
+  {
+   "fieldname": "requests_per_minute",
+   "label": "Requests Per Minute",
+   "fieldtype": "Int",
+   "default": 30
+  },
+  {
+   "fieldname": "production_refresh_cooldown",
+   "label": "Production Refresh Cooldown (seconds)",
+   "fieldtype": "Int",
+   "default": 300
+  }
+ ],
+ "field_order": [
+  "refresh_cooldown",
+  "token_renewal_margin",
+  "requests_per_minute",
+  "production_refresh_cooldown"
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

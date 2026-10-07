@@ -1,0 +1,220 @@
+{
+ "doctype": "DocType",
+ "name": "Solar Station",
+ "module": "Solar Monitor",
+ "issingle": 0,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "account",
+   "label": "Account",
+   "fieldtype": "Link",
+   "options": "Solar API Account",
+   "reqd": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "external_id",
+   "label": "External Id",
+   "fieldtype": "Data",
+   "reqd": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "inventory_key",
+   "label": "Inventory Key",
+   "fieldtype": "Data",
+   "unique": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "last_seen",
+   "label": "Last Seen",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "present",
+   "label": "Present",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "default": 1
+  },
+  {
+   "fieldname": "station_name",
+   "label": "Station Name",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "timezone",
+   "label": "Timezone",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "capacity_kw",
+   "label": "Capacity Kw",
+   "fieldtype": "Float",
+   "read_only": 1
+  },
+  {
+   "fieldname": "connection_status",
+   "label": "Connection Status",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "location",
+   "label": "Location",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "operating_since",
+   "label": "Operating Since",
+   "fieldtype": "Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "production_section",
+   "label": "Production Section",
+   "fieldtype": "Section Break",
+   "read_only": 1
+  },
+  {
+   "fieldname": "production_power_kw",
+   "label": "Production Power Kw",
+   "fieldtype": "Float",
+   "read_only": 1
+  },
+  {
+   "fieldname": "daily_production_kwh",
+   "label": "Daily Production Kwh",
+   "fieldtype": "Float",
+   "read_only": 1
+  },
+  {
+   "fieldname": "monthly_production_kwh",
+   "label": "Monthly Production Kwh",
+   "fieldtype": "Float",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_production_kwh",
+   "label": "Total Production Kwh",
+   "fieldtype": "Float",
+   "read_only": 1
+  },
+  {
+   "fieldname": "has_power",
+   "label": "Has Power",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "has_daily",
+   "label": "Has Daily",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "has_monthly",
+   "label": "Has Monthly",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "has_total",
+   "label": "Has Total",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "production_date",
+   "label": "Production Date",
+   "fieldtype": "Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_updated_at",
+   "label": "Source Updated At",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_production_fetch",
+   "label": "Last Production Fetch",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "production_status",
+   "label": "Production Status",
+   "fieldtype": "Select",
+   "options": "\nQueued\nRunning\nCompleted\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "production_error",
+   "label": "Production Error",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "production_requested_at",
+   "label": "Production Requested At",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "field_order": [
+  "account",
+  "external_id",
+  "inventory_key",
+  "last_seen",
+  "present",
+  "station_name",
+  "timezone",
+  "capacity_kw",
+  "connection_status",
+  "location",
+  "operating_since",
+  "production_section",
+  "production_power_kw",
+  "daily_production_kwh",
+  "monthly_production_kwh",
+  "total_production_kwh",
+  "has_power",
+  "has_daily",
+  "has_monthly",
+  "has_total",
+  "production_date",
+  "source_updated_at",
+  "last_production_fetch",
+  "production_status",
+  "production_error",
+  "production_requested_at"
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  },
+  {
+   "role": "Solar Monitor Viewer",
+   "read": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0,
+ "autoname": "",
+ "title_field": "station_name",
+ "search_fields": "station_name,external_id"
+}

@@ -1,0 +1,16 @@
+{
+ "doctype": "Page",
+ "name": "solar-monitor-dashboard",
+ "page_name": "solar-monitor-dashboard",
+ "title": "Solar Monitor",
+ "module": "Solar Monitor",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Solar Monitor Viewer"
+  }
+ ]
+}

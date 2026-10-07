@@ -1,0 +1,52 @@
+{
+ "doctype": "Workspace",
+ "name": "Solar Monitor",
+ "label": "Solar Monitor",
+ "title": "Solar Monitor",
+ "module": "Solar Monitor",
+ "public": 1,
+ "is_hidden": 0,
+ "sequence_id": 40,
+ "icon": "sun",
+ "content": "[{\"id\": \"header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Solar Monitor</span>\", \"col\": 12}}, {\"id\": \"shortcut0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Dashboard\", \"col\": 3}}, {\"id\": \"shortcut1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Station\", \"col\": 3}}, {\"id\": \"shortcut2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Device\", \"col\": 3}}, {\"id\": \"shortcut3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar API Account\", \"col\": 3}}, {\"id\": \"shortcut4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Monitor Settings\", \"col\": 3}}]",
+ "shortcuts": [
+  {
+   "label": "Dashboard",
+   "type": "Page",
+   "link_to": "solar-monitor-dashboard"
+  },
+  {
+   "label": "Solar Station",
+   "type": "DocType",
+   "link_to": "Solar Station",
+   "doc_view": "List"
+  },
+  {
+   "label": "Solar Device",
+   "type": "DocType",
+   "link_to": "Solar Device",
+   "doc_view": "List"
+  },
+  {
+   "label": "Solar API Account",
+   "type": "DocType",
+   "link_to": "Solar API Account",
+   "doc_view": "List"
+  },
+  {
+   "label": "Solar Monitor Settings",
+   "type": "DocType",
+   "link_to": "Solar Monitor Settings",
+   "doc_view": ""
+  }
+ ],
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Solar Monitor Viewer"
+  }
+ ],
+ "links": []
+}

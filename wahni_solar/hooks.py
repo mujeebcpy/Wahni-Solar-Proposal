@@ -54,6 +54,8 @@ doctype_js = {
 after_install = "wahni_solar.solar_project.setup.after_migrate"
 after_migrate = "wahni_solar.solar_project.setup.after_migrate"
 
+fixtures = [{"dt": "Role", "filters": [["name", "in", ["Solar Monitor Viewer"]]]}]
+
 # Print formats in proposal_pdf.FORMATS (PDF Generator "wkhtmltopdf + proposal artwork") get page artwork
 # and/or page numbers stamped on: Solar Proposal, Customer Vendor Agreement, Customer KSEB Agreement
 pdf_generator = ["wahni_solar.wahni_solar_proposal.proposal_pdf.get_pdf"]

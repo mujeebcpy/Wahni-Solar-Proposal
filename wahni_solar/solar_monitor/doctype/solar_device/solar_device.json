@@ -1,0 +1,93 @@
+{
+ "doctype": "DocType",
+ "name": "Solar Device",
+ "module": "Solar Monitor",
+ "issingle": 0,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "device_details_section",
+   "fieldtype": "Section Break",
+   "label": "Device Details"
+  },
+  {
+   "fieldname": "account",
+   "label": "Account",
+   "fieldtype": "Link",
+   "options": "Solar API Account",
+   "reqd": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "external_id",
+   "label": "Serial Number",
+   "fieldtype": "Data",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "inventory_key",
+   "label": "Inventory Key",
+   "fieldtype": "Data",
+   "unique": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "last_seen",
+   "label": "Last Inventory Sync (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "present",
+   "label": "In Current Inventory",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "default": 1
+  },
+  {
+   "fieldname": "station",
+   "label": "Station",
+   "fieldtype": "Link",
+   "options": "Solar Station",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "device_type",
+   "label": "Device Type",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  }
+ ],
+ "field_order": [
+  "device_details_section",
+  "device_type",
+  "station",
+  "external_id",
+  "account",
+  "last_seen",
+  "present",
+  "inventory_key"
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  },
+  {
+   "role": "Solar Monitor Viewer",
+   "read": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0,
+ "autoname": "",
+ "search_fields": "device_type,external_id,station"
+}
