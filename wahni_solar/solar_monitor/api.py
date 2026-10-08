@@ -1,3 +1,5 @@
+from collections import Counter
+
 import frappe
 from frappe import _
 from frappe.utils import cint, get_datetime
@@ -140,15 +142,16 @@ def get_overview(
 	)
 	for row in open_alerts:
 		row.station_name = station_names.get(row.station, row.station)
-	alert_counts = {
-		row.severity: row.count
-		for row in frappe.get_list(
-			alerts.ALERT,
-			filters=dict(filters, status="Open"),
-			fields=["severity", "count(name) as count"],
-			group_by="severity",
+	alert_counts = dict(
+		Counter(
+			frappe.get_list(
+				alerts.ALERT,
+				filters=dict(filters, status="Open"),
+				pluck="severity",
+				limit_page_length=0,
+			)
 		)
-	}
+	)
 	if station:
 		rows = [r for r in rows if r.name == station]
 	if search:
