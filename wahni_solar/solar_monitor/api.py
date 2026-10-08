@@ -2,7 +2,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, get_datetime
 
-from wahni_solar.solar_monitor import service
+from wahni_solar.solar_monitor import alerts, service
 
 MANAGER_ROLES = ["System Manager"]
 VIEWER_ROLES = ["System Manager", "Solar Monitor Viewer"]
@@ -112,6 +112,9 @@ def get_overview(
 			"sync_status",
 			"sync_error",
 			"company_lookup_error",
+			"alert_status",
+			"last_alert_sync",
+			"alert_error",
 		],
 	)
 	allowed = {x.name for x in accounts}
@@ -127,6 +130,25 @@ def get_overview(
 	)
 	rows = [production.display(row) for row in rows]
 	summary = production.totals(rows)
+	station_names = {r.name: r.station_name or r.name for r in rows}
+	open_alerts = frappe.get_list(
+		alerts.ALERT,
+		filters=dict(filters, status="Open"),
+		fields=alerts.FIELDS,
+		order_by="priority desc, alert_start desc",
+		page_length=100,
+	)
+	for row in open_alerts:
+		row.station_name = station_names.get(row.station, row.station)
+	alert_counts = {
+		row.severity: row.count
+		for row in frappe.get_list(
+			alerts.ALERT,
+			filters=dict(filters, status="Open"),
+			fields=["severity", "count(name) as count"],
+			group_by="severity",
+		)
+	}
 	if station:
 		rows = [r for r in rows if r.name == station]
 	if search:
@@ -134,6 +156,8 @@ def get_overview(
 	offset = max(0, cint(start))
 	return {
 		"accounts": accounts,
+		"alerts": open_alerts,
+		"alert_counts": alert_counts,
 		"stations": rows[offset : offset + 100],
 		"filtered_count": len(rows),
 		"summary": summary,
@@ -158,6 +182,13 @@ def get_station(station: str):
 			"Solar Device",
 			filters={"station": station, "present": 1},
 			fields=["name", "external_id", "device_type"],
+			page_length=0,
+		),
+		"alerts": frappe.get_list(
+			alerts.ALERT,
+			filters={"station": station, "status": "Open"},
+			fields=alerts.FIELDS,
+			order_by="priority desc, alert_start desc",
 			page_length=0,
 		),
 		"can_manage": "System Manager" in frappe.get_roles(),
@@ -192,6 +223,23 @@ def refresh_production(account: str | None = None):
 			state = production.enqueue(station)["status"]
 		except service.Busy:
 			# Another request is queueing this station right now.
+			state = "Running"
+		result[state] += 1
+	return result
+
+
+@frappe.whitelist(methods=["POST"])
+def check_alerts(account: str | None = None):
+	"""Queue an alert check covering every present station of one or all enabled Deye accounts."""
+	frappe.only_for(MANAGER_ROLES)
+	accounts = frappe.get_all(service.ACCOUNT, filters={"provider": "Deye", "enabled": 1}, pluck="name")
+	if account and account not in accounts:
+		frappe.throw(_("Select an enabled Deye account."))
+	result = {"Queued": 0, "Running": 0, "Cached": 0}
+	for name in [account] if account else accounts:
+		try:
+			state = alerts.enqueue(name)["status"]
+		except service.Busy:
 			state = "Running"
 		result[state] += 1
 	return result

@@ -28,13 +28,20 @@
    "label": "Production Refresh Cooldown (seconds)",
    "fieldtype": "Int",
    "default": 300
+  },
+  {
+   "fieldname": "alert_lookback_days",
+   "label": "Alert Lookback (days, max 180)",
+   "fieldtype": "Int",
+   "default": 30
   }
  ],
  "field_order": [
   "refresh_cooldown",
   "token_renewal_margin",
   "requests_per_minute",
-  "production_refresh_cooldown"
+  "production_refresh_cooldown",
+  "alert_lookback_days"
  ],
  "permissions": [
   {

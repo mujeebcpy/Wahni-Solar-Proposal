@@ -15,6 +15,7 @@ Tests (inside the existing container):
 ```sh
 docker exec -w /home/frappe/frappe-bench erp bench --site <site> run-tests --module wahni_solar.solar_monitor.tests.test_service
 docker exec -w /home/frappe/frappe-bench erp bench --site <site> run-tests --module wahni_solar.solar_monitor.tests.test_production
+docker exec -w /home/frappe/frappe-bench erp bench --site <site> run-tests --module wahni_solar.solar_monitor.tests.test_alerts
 ```
 
 The workspace route is `/app/solar-monitor`; its Dashboard shortcut opens the separate custom Page at `/app/solar-monitor-dashboard`.
@@ -28,3 +29,15 @@ Fetch inventory after a reset, then click **Update production** to queue all ena
 Cards aggregate all present stations in the selected account/provider, independent of the table's pagination or search. Readings show coverage and stale counts; missing energy is not displayed as zero. Today/month rollover follows station timezone. Individual updates use a configurable 300-second cooldown and pending-job reuse. Workers query latest power, current month's daily energy and annual energy since commissioning (or year 2000 when no commissioning date is available). Lifetime production is the sum of annual readings returned by the provider. No production requests happen on navigation.
 
 All timestamps are stored and shown in the site time zone (System Settings → Time Zone, e.g. Asia/Kolkata for UTC+05:30). Station today/month rollover still follows each station's own time zone.
+
+## Alerts
+
+The dashboard shows open alerts first. **Check alerts** queues one long-queue job per enabled Deye account (or the selected account) that calls `/v1.0/station/alertList` for every present station, covering the last *Alert Lookback* days (Solar Monitor Settings, default 30, Deye maximum 180). Alerts are saved as Solar Alert records and nothing is polled automatically. A failing station is reported on the account without discarding the stations that succeeded.
+
+Severity comes from Deye's `impact` (0 none, 1 production, 2 safety, 3 production & safety) and `level` (0 notice, 1 warning, 2 failure):
+
+- **Critical** (needs immediate installer attention): safety impact (2 or 3) or failure level (2).
+- **Warning**: production impact (1) or warning level (1).
+- **Notice**: everything else.
+
+Open alerts are listed Critical first, then newest first. Open alerts inside the checked window that Deye no longer returns are closed.

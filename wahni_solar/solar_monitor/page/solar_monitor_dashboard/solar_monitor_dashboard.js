@@ -19,6 +19,8 @@ frappe.pages["solar-monitor-dashboard"].on_page_load = function (wrapper) {
  .solar-monitor-dashboard .sm-note {font-size:12px;color:var(--text-muted)}
  .solar-monitor-dashboard .sm-station {font-weight:600;text-align:left}
  .solar-monitor-dashboard td {vertical-align:middle}
+ .solar-monitor-dashboard .sm-alerts {padding:16px;border:1px solid var(--border-color);border-radius:12px;margin-bottom:24px}
+ .solar-monitor-dashboard .sm-alert-critical td:first-child {border-left:3px solid var(--red-500, #e03636)}
  `
 		)
 		.appendTo(body);
@@ -93,6 +95,123 @@ frappe.pages["solar-monitor-dashboard"].on_page_load = function (wrapper) {
 			);
 		});
 	}
+	const SEVERITY_COLORS = { Critical: "red", Warning: "orange", Notice: "gray" };
+	const pill = (severity, text) =>
+		`<span class="indicator-pill ${SEVERITY_COLORS[severity] || "gray"}">${esc(text)}</span>`;
+	function alertsSection(data) {
+		const section = $('<div class="sm-alerts">').appendTo(body);
+		const counts = data.alert_counts || {};
+		const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+		const head = $(
+			'<div class="d-flex flex-wrap align-items-center justify-content-between mb-2">'
+		).appendTo(section);
+		$('<h4 class="m-0">')
+			.text(__("Open alerts"))
+			.append(
+				["Critical", "Warning", "Notice"]
+					.filter((sev) => counts[sev])
+					.map((sev) => ` ${pill(sev, `${__(sev)}: ${counts[sev]}`)}`)
+					.join("")
+			)
+			.appendTo(head);
+		if (data.can_manage) {
+			const btn = $('<button class="btn btn-default btn-sm">')
+				.text(__("Check alerts"))
+				.appendTo(head)
+				.on("click", async () => {
+					btn.prop("disabled", true);
+					try {
+						const res = await call("check_alerts", {
+							account: account.get_value() || null,
+						});
+						frappe.show_alert({
+							message: __(
+								"Alert check queued: {0}, running: {1}, recently checked: {2}",
+								[res.message.Queued, res.message.Running, res.message.Cached]
+							),
+							indicator: "blue",
+						});
+						await load();
+					} finally {
+						btn.prop("disabled", false);
+					}
+				});
+		}
+		data.accounts
+			.filter((a) => !account.get_value() || a.name === account.get_value())
+			.forEach((a) => {
+				const note = ["Queued", "Running"].includes(a.alert_status)
+					? __("{0}: checking alerts for all stations…", [a.account_label])
+					: __("{0}: alerts last checked {1}", [
+							a.account_label,
+							fetched(a.last_alert_sync),
+					  ]);
+				$('<div class="sm-note">').text(note).appendTo(section);
+				if (a.alert_error)
+					$('<div class="sm-note text-danger">').text(a.alert_error).appendTo(section);
+			});
+		if (!data.alerts.length) {
+			$('<p class="text-muted mt-2 mb-0">').text(__("No open alerts.")).appendTo(section);
+			return;
+		}
+		const table = $(
+			`<div class="table-responsive mt-2"><table class="table table-bordered mb-0"><thead><tr>${[
+				__("Severity"),
+				__("Station"),
+				__("Alert"),
+				__("Device"),
+				__("Impact / Level"),
+				__("Started"),
+			]
+				.map((h) => `<th>${esc(h)}</th>`)
+				.join("")}</tr></thead><tbody></tbody></table></div>`
+		).appendTo(section);
+		data.alerts.forEach((a) => {
+			const tr = $("<tr>")
+				.toggleClass("sm-alert-critical", a.severity === "Critical")
+				.appendTo(table.find("tbody"));
+			$("<td>")
+				.html(pill(a.severity, __(a.severity)))
+				.appendTo(tr);
+			$("<td>")
+				.append(
+					$('<button class="btn btn-link p-0 sm-station">')
+						.text(a.station_name || a.station)
+						.on("click", () => details(a.station))
+				)
+				.appendTo(tr);
+			$("<td>")
+				.append(
+					$("<a>")
+						.attr("href", "/app/solar-alert/" + encodeURIComponent(a.name))
+						.text(a.alert_name)
+				)
+				.append(
+					$('<div class="sm-note">').text(
+						[a.protocol_name, a.alert_code].filter(Boolean).join(" · ")
+					)
+				)
+				.appendTo(tr);
+			$("<td>")
+				.text(a.device_sn || "—")
+				.append($('<div class="sm-note">').text(a.device_type || ""))
+				.appendTo(tr);
+			$("<td>")
+				.text(
+					[a.impact, a.level]
+						.filter(Boolean)
+						.map((v) => __(v))
+						.join(" / ") || "—"
+				)
+				.appendTo(tr);
+			$("<td>").text(fetched(a.alert_start)).appendTo(tr);
+		});
+		if (total > data.alerts.length)
+			$('<p class="sm-note mt-2 mb-0">')
+				.text(__("Showing {0} of {1} open alerts.", [data.alerts.length, total]) + " ")
+				.append($("<a>").attr("href", "/app/solar-alert?status=Open").text(__("View all")))
+				.appendTo(section);
+	}
 	async function update(station, button) {
 		if (button) button.prop("disabled", true);
 		try {
@@ -141,6 +260,25 @@ frappe.pages["solar-monitor-dashboard"].on_page_load = function (wrapper) {
 				__("Devices")
 			)}</h5>`
 		);
+		if (r.message.alerts.length) {
+			const block = $("<div class='mb-3'>").insertBefore(content.find("h5").last());
+			$("<h5>").text(__("Open alerts")).appendTo(block);
+			r.message.alerts.forEach((a) =>
+				$("<p class='mb-1'>")
+					.html(`${pill(a.severity, __(a.severity))} `)
+					.append(
+						$("<a>")
+							.attr("href", "/app/solar-alert/" + encodeURIComponent(a.name))
+							.text(a.alert_name)
+					)
+					.append(
+						$('<span class="text-muted">').text(
+							` · ${a.device_sn || "—"} · ${fetched(a.alert_start)}`
+						)
+					)
+					.appendTo(block)
+			);
+		}
 		r.message.devices.forEach((d) =>
 			$("<p>")
 				.append(
@@ -191,6 +329,7 @@ frappe.pages["solar-monitor-dashboard"].on_page_load = function (wrapper) {
 			})),
 		];
 		account.refresh();
+		alertsSection(data);
 		cards(data.summary);
 		body.append(
 			$('<p class="text-muted">').text(
@@ -326,7 +465,14 @@ frappe.pages["solar-monitor-dashboard"].on_page_load = function (wrapper) {
 				offset += 100;
 				load();
 			});
-		if (data.busy || data.accounts.some((a) => ["Queued", "Running"].includes(a.sync_status)))
+		if (
+			data.busy ||
+			data.accounts.some((a) =>
+				["Queued", "Running"].some((state) =>
+					[a.sync_status, a.alert_status].includes(state)
+				)
+			)
+		)
 			timer = setTimeout(() => {
 				if ($(wrapper).is(":visible")) load();
 			}, 5000);

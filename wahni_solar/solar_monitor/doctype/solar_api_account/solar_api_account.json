@@ -220,6 +220,36 @@
    "fieldtype": "Int",
    "read_only": 1,
    "hidden": 0
+  },
+  {
+   "fieldname": "alerts_section",
+   "label": "Alerts",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "alert_status",
+   "label": "Alert Check Status",
+   "fieldtype": "Select",
+   "options": "\nQueued\nRunning\nCompleted\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_alert_sync",
+   "label": "Last Alert Check",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "alert_started_at",
+   "label": "Alert Check Started At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "alert_error",
+   "label": "Alert Check Error",
+   "fieldtype": "Small Text",
+   "read_only": 1
   }
  ],
  "field_order": [
@@ -256,7 +286,12 @@
   "sync_status",
   "sync_error",
   "sync_started_at",
-  "request_count"
+  "request_count",
+  "alerts_section",
+  "alert_status",
+  "last_alert_sync",
+  "alert_started_at",
+  "alert_error"
  ],
  "permissions": [
   {

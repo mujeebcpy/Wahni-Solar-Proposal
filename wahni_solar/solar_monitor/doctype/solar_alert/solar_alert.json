@@ -1,0 +1,189 @@
+{
+ "doctype": "DocType",
+ "name": "Solar Alert",
+ "module": "Solar Monitor",
+ "issingle": 0,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "alert_section",
+   "label": "Alert",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "alert_name",
+   "label": "Alert",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "severity",
+   "label": "Severity",
+   "fieldtype": "Select",
+   "options": "Critical\nWarning\nNotice",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "label": "Status",
+   "fieldtype": "Select",
+   "options": "Open\nClosed",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_alert",
+   "label": "",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "station",
+   "label": "Station",
+   "fieldtype": "Link",
+   "options": "Solar Station",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "account",
+   "label": "Account",
+   "fieldtype": "Link",
+   "options": "Solar API Account",
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "device_sn",
+   "label": "Device Serial",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "device_type",
+   "label": "Device Type",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "classification_section",
+   "label": "Classification",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "impact",
+   "label": "Impact",
+   "fieldtype": "Select",
+   "options": "\nNo Impact\nProduction\nSafety\nProduction & Safety",
+   "read_only": 1
+  },
+  {
+   "fieldname": "level",
+   "label": "Level",
+   "fieldtype": "Select",
+   "options": "\nNotice\nWarning\nFailure",
+   "read_only": 1
+  },
+  {
+   "fieldname": "alert_code",
+   "label": "Alert Code",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "protocol_name",
+   "label": "Protocol Name",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_timing",
+   "label": "",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "alert_start",
+   "label": "Started",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "alert_end",
+   "label": "Ended",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_seen",
+   "label": "Last Checked",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "alert_id",
+   "label": "Provider Alert ID",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "alert_key",
+   "label": "Alert Key",
+   "fieldtype": "Data",
+   "unique": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "priority",
+   "label": "Priority",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "read_only": 1
+  }
+ ],
+ "field_order": [
+  "alert_section",
+  "alert_name",
+  "severity",
+  "status",
+  "column_break_alert",
+  "station",
+  "account",
+  "device_sn",
+  "device_type",
+  "classification_section",
+  "impact",
+  "level",
+  "alert_code",
+  "protocol_name",
+  "column_break_timing",
+  "alert_start",
+  "alert_end",
+  "last_seen",
+  "alert_id",
+  "alert_key",
+  "priority"
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "delete": 1
+  },
+  {
+   "role": "Solar Monitor Viewer",
+   "read": 1
+  }
+ ],
+ "sort_field": "alert_start",
+ "sort_order": "DESC",
+ "track_changes": 0,
+ "autoname": "hash",
+ "title_field": "alert_name",
+ "search_fields": "station,device_sn,severity"
+}

@@ -8,12 +8,18 @@
  "is_hidden": 0,
  "sequence_id": 40,
  "icon": "sun",
- "content": "[{\"id\": \"header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Solar Monitor</span>\", \"col\": 12}}, {\"id\": \"shortcut0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Dashboard\", \"col\": 3}}, {\"id\": \"shortcut1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Station\", \"col\": 3}}, {\"id\": \"shortcut2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Device\", \"col\": 3}}, {\"id\": \"shortcut3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar API Account\", \"col\": 3}}, {\"id\": \"shortcut4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Monitor Settings\", \"col\": 3}}]",
+ "content": "[{\"id\": \"header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Solar Monitor</span>\", \"col\": 12}}, {\"id\": \"shortcut0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Dashboard\", \"col\": 3}}, {\"id\": \"shortcut_alerts\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Alert\", \"col\": 3}}, {\"id\": \"shortcut1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Station\", \"col\": 3}}, {\"id\": \"shortcut2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Device\", \"col\": 3}}, {\"id\": \"shortcut3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar API Account\", \"col\": 3}}, {\"id\": \"shortcut4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Monitor Settings\", \"col\": 3}}]",
  "shortcuts": [
   {
    "label": "Dashboard",
    "type": "Page",
    "link_to": "solar-monitor-dashboard"
+  },
+  {
+   "label": "Solar Alert",
+   "type": "DocType",
+   "link_to": "Solar Alert",
+   "doc_view": "List"
   },
   {
    "label": "Solar Station",
