@@ -3,6 +3,7 @@ from collections import Counter
 import frappe
 from frappe import _
 from frappe.utils import cint, get_datetime
+from frappe.utils.background_jobs import is_job_enqueued
 
 from wahni_solar.solar_monitor import alerts, service
 
@@ -69,7 +70,9 @@ def sync_inventory(account: str):
 			if doc.sync_started_at
 			else 999999
 		)
-		if doc.sync_status in ("Queued", "Running") and elapsed < 7200:
+		job_id = "solar-monitor-inventory-job:" + account
+		# A status left behind by a job that crashed or was lost must not block a new sync.
+		if doc.sync_status in ("Queued", "Running") and elapsed < 7200 and is_job_enqueued(job_id):
 			return {"status": doc.sync_status}
 		if elapsed < service.setting("refresh_cooldown", 120):
 			frappe.throw(_("Inventory was requested recently. Wait for the refresh cooldown."))
@@ -83,6 +86,7 @@ def sync_inventory(account: str):
 			queue="long",
 			timeout=7200,
 			account=account,
+			job_id=job_id,
 			enqueue_after_commit=True,
 		)
 	return {"status": "Queued"}

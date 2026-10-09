@@ -75,6 +75,31 @@ FORMATS = {
 }
 
 
+# nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+@frappe.whitelist(allow_guest=True)
+def download_pdf(
+    doctype: str,
+    name: str,
+    format: str | None = None,
+    no_letterhead: bool | int = 0,
+    language: str | None = None,
+    letterhead: str | None = None,
+    pdf_generator: str | None = None,
+):
+    """Overrides frappe.utils.print_format.download_pdf (Print → PDF button). Frappe types its
+    `pdf_generator` as a Literal of the built-in engines, so GENERATOR is rejected before
+    get_print runs. Pass None instead: get_print still reads GENERATOR from form_dict and
+    hands it to the `get_pdf` hook below."""
+    from frappe.utils.print_format import download_pdf as frappe_download_pdf
+
+    if pdf_generator == GENERATOR:
+        pdf_generator = None
+    return frappe_download_pdf(
+        doctype, name, format, no_letterhead=no_letterhead, language=language,
+        letterhead=letterhead, pdf_generator=pdf_generator,
+    )
+
+
 def get_pdf(print_format=None, html=None, options=None, output=None, pdf_generator=None):
     """`pdf_generator` hook: return None to let Frappe fall back to plain wkhtmltopdf."""
     artwork = FORMATS.get(print_format)
@@ -241,9 +266,11 @@ def setup():
     from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 
     current = (frappe.get_meta("Print Format").get_options("pdf_generator") or "wkhtmltopdf").split("\n")
-    options = [o for o in current if o != OLD_GENERATOR]
-    if GENERATOR not in options:
-        options.append(GENERATOR)
+    # rebuild from the standard options so engines added by Frappe upgrades (chrome, Typst, ...) stay
+    standard = frappe.db.get_value(
+        "DocField", {"parent": "Print Format", "fieldname": "pdf_generator"}, "options"
+    ) or "wkhtmltopdf"
+    options = [o for o in standard.split("\n") if o != GENERATOR] + [GENERATOR]
     if options != current:
         make_property_setter(
             "Print Format", "pdf_generator", "options", "\n".join(options), "Text",
