@@ -1,4 +1,4 @@
-"""Server-only Deye connector. Never expose provider response bodies in errors."""
+"""Server-only provider connectors (Deye here, Enphase in enphase.py). Never expose provider response bodies in errors."""
 
 import hashlib
 import time
@@ -19,10 +19,17 @@ BASE_URLS = {
 	"Europe": "https://eu1-developer.deyecloud.com",
 	"Americas": "https://us1-developer.deyecloud.com",
 }
+PROVIDERS = ("Deye", "Enphase")
 
 
 class ProviderError(frappe.ValidationError):
 	pass
+
+
+class ProviderHTTPError(ProviderError):
+	def __init__(self, message, status):
+		super().__init__(message)
+		self.status = status
 
 
 class InvalidToken(ProviderError):
@@ -91,7 +98,7 @@ def token_expiry(value, started):
 
 def account_doc(name):
 	doc = frappe.get_doc(ACCOUNT, name)
-	if not doc.enabled or doc.provider != "Deye":
+	if not doc.enabled or doc.provider not in PROVIDERS:
 		raise ProviderError(_("This account is disabled or its provider is not implemented."))
 	return doc
 
@@ -101,39 +108,44 @@ def secret(doc, field):
 
 
 def pace(doc):
-	key = "solar-monitor-rate:" + hashlib.sha256((doc.region + ":" + doc.app_id).encode()).hexdigest()
+	if doc.provider == "Enphase":
+		# Enphase quotas belong to the developer application (client ID).
+		identity, per_minute = "enphase:" + doc.client_id, setting("enphase_requests_per_minute", 300)
+	else:
+		identity, per_minute = doc.region + ":" + doc.app_id, setting("requests_per_minute", 30)
+	interval = 60 / per_minute
+	key = "solar-monitor-rate:" + hashlib.sha256(identity.encode()).hexdigest()
 	cache = frappe.cache()
-	with lock(key + ":lock", 20, 15, _("Application request queue is busy. Please try again shortly.")):
+	busy = _("Application request queue is busy. Please try again shortly.")
+	with lock(key + ":lock", 20 + interval, 15 + 2 * interval, busy):
 		delay = max(0, float(cache.get_value(key) or 0) - time.time())
-		if delay > 10:
-			raise ProviderError(_("Application request queue is busy. Please try again shortly."))
+		if delay > 10 + interval:
+			raise ProviderError(busy)
 		time.sleep(delay)
-		cache.set_value(key, time.time() + 60 / setting("requests_per_minute", 30), expires_in_sec=120)
+		cache.set_value(key, time.time() + interval, expires_in_sec=120 + int(interval))
 	Account = frappe.qb.DocType(ACCOUNT)
 	frappe.qb.update(Account).set(Account.request_count, Coalesce(Account.request_count, 0) + 1).where(
 		Account.name == doc.name
 	).run()
 
 
-def post(doc, path, body, token=None):
+def send(doc, method, url, token=None, headers=None, **kwargs):
+	"""Paced HTTP request with bounded 429/5xx backoff. Returns the successful response."""
 	for attempt in range(3):
 		pace(doc)
-		headers = {"Content-Type": "application/json"}
+		request_headers = dict(headers or {})
 		if token:
-			headers["Authorization"] = bearer(token)
+			request_headers["Authorization"] = bearer(token)
 		try:
-			response = requests.post(
-				BASE_URLS[doc.region] + path,
-				params={"appId": doc.app_id} if path.endswith("/token") else None,
-				json=body,
-				headers=headers,
-				timeout=(10, 30),
-				allow_redirects=False,
+			response = requests.request(
+				method, url, headers=request_headers, timeout=(10, 30), allow_redirects=False, **kwargs
 			)
 		except requests.RequestException:
 			raise ProviderError(_("Provider request failed or timed out.")) from None
 		if response.status_code == 401 and token:
 			raise InvalidToken(_("Provider rejected the access token."))
+		if response.status_code == 429 and quota_period(response) == "month":
+			raise ProviderError(_("Provider monthly request quota is exhausted. Try again next month."))
 		if response.status_code == 429 or response.status_code >= 500:
 			if attempt < 2:
 				try:
@@ -144,26 +156,112 @@ def post(doc, path, body, token=None):
 					raise ProviderError(_("Provider requested a longer retry delay. Try again later."))
 				time.sleep(max(0, delay))
 				continue
-		if not 200 <= response.status_code < 300:
-			raise ProviderError(_("Provider returned HTTP {0}.").format(response.status_code))
-		try:
-			data = response.json()
-		except ValueError:
-			raise ProviderError(_("Provider returned invalid JSON.")) from None
-		if not isinstance(data, dict) or data.get("success") is not True:
-			raise ProviderError(
-				_(
-					"Provider rejected the request. Verify credentials, company membership and access permissions."
-				)
+		if response.status_code == 403:
+			raise ProviderHTTPError(
+				_("Provider denied access (HTTP 403). The API plan may not include this data."), 403
 			)
-		return data
+		if not 200 <= response.status_code < 300:
+			raise ProviderHTTPError(
+				_("Provider returned HTTP {0}.").format(response.status_code), response.status_code
+			)
+		return response
 	raise ProviderError(_("Provider is temporarily unavailable or rate limited."))
 
 
-def ensure_token(name, rejected_token=None):
-	with lock(
+def quota_period(response):
+	try:
+		data = response.json()
+	except ValueError:
+		return None
+	return str(data.get("period") or "").lower() if isinstance(data, dict) else None
+
+
+def json_body(response):
+	try:
+		data = response.json()
+	except ValueError:
+		raise ProviderError(_("Provider returned invalid JSON.")) from None
+	if not isinstance(data, dict):
+		raise ProviderError(_("Provider returned an unexpected response."))
+	return data
+
+
+def post(doc, path, body, token=None):
+	response = send(
+		doc,
+		"POST",
+		BASE_URLS[doc.region] + path,
+		token=token,
+		headers={"Content-Type": "application/json"},
+		params={"appId": doc.app_id} if path.endswith("/token") else None,
+		json=body,
+	)
+	data = json_body(response)
+	if data.get("success") is not True:
+		raise ProviderError(
+			_("Provider rejected the request. Verify credentials, company membership and access permissions.")
+		)
+	return data
+
+
+def deye_login(doc):
+	data = post(
+		doc,
+		"/v1.0/account/token",
+		{
+			"appSecret": secret(doc, "app_secret"),
+			"email": doc.email,
+			"password": password_hash(secret(doc, "password")),
+			"companyId": int(doc.company_id),
+		},
+	)
+	return {
+		"access_token": data.get("accessToken"),
+		"refresh_token": data.get("refreshToken") or "",
+		"expires_in": data.get("expiresIn"),
+		"token_type": data.get("tokenType"),
+		"scope": data.get("scope"),
+		"uid": data.get("uid", ""),
+	}
+
+
+def save_token(name, data, started):
+	"""Validate and store a normalized token response; returns the access token."""
+	token = data.get("access_token")
+	if not isinstance(token, str):
+		raise ProviderError(_("Provider response is missing the access token."))
+	bearer(token)
+	expiry = token_expiry(data.get("expires_in"), started)
+	refresh = data.get("refresh_token") or ""
+	if not isinstance(refresh, str):
+		raise ProviderError(_("Provider returned an invalid refresh token."))
+	set_encrypted_password(ACCOUNT, name, token, "access_token")
+	set_encrypted_password(ACCOUNT, name, refresh, "refresh_token")
+	frappe.db.set_value(
+		ACCOUNT,
+		name,
+		{
+			"expires_at": expiry,
+			"token_type": data.get("token_type"),
+			"scope": data.get("scope"),
+			"provider_user_id": str(data.get("uid") or ""),
+			"last_authentication": started,
+			"connection_status": "Connected",
+			"authentication_error": "",
+		},
+	)
+	frappe.db.commit()
+	return token
+
+
+def token_lock(name):
+	return lock(
 		"solar-monitor-token:" + name, 240, 15, _("Authentication is already in progress. Try again shortly.")
-	):
+	)
+
+
+def ensure_token(name, rejected_token=None):
+	with token_lock(name):
 		doc = account_doc(name)
 		token = get_decrypted_password(ACCOUNT, name, "access_token", raise_exception=False)
 		valid = (
@@ -174,55 +272,38 @@ def ensure_token(name, rejected_token=None):
 		if valid and (rejected_token is None or token != rejected_token):
 			return token
 		started = now()
-		data = post(
-			doc,
-			"/v1.0/account/token",
-			{
-				"appSecret": secret(doc, "app_secret"),
-				"email": doc.email,
-				"password": password_hash(secret(doc, "password")),
-				"companyId": int(doc.company_id),
-			},
-		)
-		token = data.get("accessToken")
-		if not isinstance(token, str):
-			raise ProviderError(_("Provider response is missing the access token."))
-		bearer(token)
-		expiry = token_expiry(data.get("expiresIn"), started)
-		refresh = data.get("refreshToken") or ""
-		if not isinstance(refresh, str):
-			raise ProviderError(_("Provider returned an invalid refresh token."))
-		set_encrypted_password(ACCOUNT, name, token, "access_token")
-		set_encrypted_password(ACCOUNT, name, refresh, "refresh_token")
-		frappe.db.set_value(
-			ACCOUNT,
-			name,
-			{
-				"expires_at": expiry,
-				"token_type": data.get("tokenType"),
-				"scope": data.get("scope"),
-				"provider_user_id": str(data.get("uid", "")),
-				"last_authentication": started,
-				"connection_status": "Connected",
-				"authentication_error": "",
-			},
-		)
-		frappe.db.commit()
-		return token
+		if doc.provider == "Enphase":
+			from wahni_solar.solar_monitor import enphase
+
+			data = enphase.renew_token(doc)
+		else:
+			data = deye_login(doc)
+		return save_token(name, data, started)
 
 
 def authenticated(name, path, body):
+	"""Provider call with one token renewal on rejection: Deye POSTs a JSON body, Enphase GETs query params."""
 	token = ensure_token(name)
+	doc = account_doc(name)
+	if doc.provider == "Enphase":
+		from wahni_solar.solar_monitor import enphase
+
+		call = enphase.get
+	else:
+		call = post
 	try:
-		return post(account_doc(name), path, body, token)
+		return call(doc, path, body, token)
 	except InvalidToken:
 		token = ensure_token(name, rejected_token=token)
-		return post(account_doc(name), path, body, token)
+		return call(account_doc(name), path, body, token)
 
 
 def company_details(name, manual=False):
 	with lock("solar-monitor-company:" + name, 300, 15, _("Company details are already being fetched.")):
 		doc = account_doc(name)
+		if doc.provider == "Enphase":
+			# Company membership is a Deye concept; Enphase calls are scoped by the OAuth grant.
+			return
 		if not manual and (doc.company_name or doc.company_lookup_attempted):
 			return
 		frappe.db.set_value(ACCOUNT, name, "company_lookup_attempted", 1)
@@ -301,24 +382,16 @@ def sync_job(account):
 		pass
 
 
-def _sync(account):
-	try:
-		account_doc(account)
-		frappe.db.set_value(ACCOUNT, account, "sync_status", "Running")
-		frappe.db.commit()
-		ensure_token(account)
-		company_details(account)
-		stations = pages(account, "/v1.0/station/list", "stationList")
-		devices = []
-		for start in range(0, len(stations), 20):
-			ids = [int(x["id"]) for x in stations[start : start + 20]]
-			devices.extend(pages(account, "/v1.0/station/device", "deviceListItems", {"stationIds": ids}))
-		seen = now()
-		station_names = {}
-		for row in stations:
-			station_names[str(row["id"])] = upsert(
-				"Solar Station",
-				account,
+def deye_inventory(account):
+	"""Returns ([(station_id, values)], [(station_id, serial, device_type)])."""
+	stations = pages(account, "/v1.0/station/list", "stationList")
+	devices = []
+	for start in range(0, len(stations), 20):
+		ids = [int(x["id"]) for x in stations[start : start + 20]]
+		devices.extend(pages(account, "/v1.0/station/device", "deviceListItems", {"stationIds": ids}))
+	return (
+		[
+			(
 				row["id"],
 				{
 					"station_name": row.get("name"),
@@ -328,19 +401,35 @@ def _sync(account):
 					"location": row.get("locationAddress"),
 					"operating_since": operating_date(row.get("startOperatingTime")),
 				},
-				seen,
 			)
-		for row in devices:
-			station = station_names.get(str(row["stationId"]))
-			if not station or not row.get("deviceSn"):
+			for row in stations
+		],
+		[(row["stationId"], row.get("deviceSn"), row.get("deviceType")) for row in devices],
+	)
+
+
+def _sync(account):
+	try:
+		doc = account_doc(account)
+		frappe.db.set_value(ACCOUNT, account, "sync_status", "Running")
+		frappe.db.commit()
+		ensure_token(account)
+		company_details(account)
+		if doc.provider == "Enphase":
+			from wahni_solar.solar_monitor import enphase
+
+			stations, devices = enphase.inventory(account)
+		else:
+			stations, devices = deye_inventory(account)
+		seen = now()
+		station_names = {}
+		for external_id, values in stations:
+			station_names[str(external_id)] = upsert("Solar Station", account, external_id, values, seen)
+		for station_id, serial, device_type in devices:
+			station = station_names.get(str(station_id))
+			if not station or not serial:
 				raise ProviderError(_("Provider returned a device with an unknown station or empty serial."))
-			upsert(
-				"Solar Device",
-				account,
-				row["deviceSn"],
-				{"station": station, "device_type": row.get("deviceType")},
-				seen,
-			)
+			upsert("Solar Device", account, serial, {"station": station, "device_type": device_type}, seen)
 		for dt in ("Solar Station", "Solar Device"):
 			table = frappe.qb.DocType(dt)
 			frappe.qb.update(table).set(table.present, 0).where(

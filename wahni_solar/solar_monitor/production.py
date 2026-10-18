@@ -34,6 +34,9 @@ FIELDS = [
 	"production_status",
 	"production_error",
 ]
+# Deye "NORMAL" connection status and the Enphase "normal" system status label.
+ONLINE = ("NORMAL", "System Normal")
+STALE_AFTER = {"Deye": 600, "Enphase": 1800}
 
 
 def local_date(station):
@@ -119,6 +122,11 @@ def snapshot(station):
 	# Deye power is in W; energy values are in kWh.
 	if values["production_power_kw"] is not None:
 		values["production_power_kw"] /= 1000
+	return completed(values, today, latest.get("lastUpdateTime"))
+
+
+def completed(values, day, source_time):
+	"""Add availability flags and status fields to a reading in kW/kWh."""
 	for flag, field in [
 		("has_power", "production_power_kw"),
 		("has_daily", "daily_production_kwh"),
@@ -127,8 +135,8 @@ def snapshot(station):
 	]:
 		values[flag] = int(values[field] is not None)
 	values.update(
-		production_date=today,
-		source_updated_at=str(latest.get("lastUpdateTime") or ""),
+		production_date=day,
+		source_updated_at=str(source_time or ""),
 		last_production_fetch=service.now(),
 		production_status="Completed",
 		production_error="",
@@ -136,7 +144,12 @@ def snapshot(station):
 	return values
 
 
-def display(row):
+def stale_after(provider):
+	"""Seconds before a reading counts as stale. Enphase gateways report every 15 minutes."""
+	return STALE_AFTER.get(provider, 600)
+
+
+def display(row, stale_seconds=600):
 	try:
 		today = local_date(row)
 	except service.ProviderError as exc:
@@ -162,18 +175,21 @@ def display(row):
 		row.monthly_production_kwh = None
 	row.stale = (
 		not row.last_production_fetch
-		or (service.now() - get_datetime(row.last_production_fetch)).total_seconds() > 600
+		or (service.now() - get_datetime(row.last_production_fetch)).total_seconds() > stale_seconds
 	)
 	source_time = number(row.get("source_updated_at"))
 	if source_time is not None:
-		row.stale = row.stale or service.utcnow().replace(tzinfo=timezone.utc).timestamp() - source_time > 600
+		row.stale = (
+			row.stale
+			or service.utcnow().replace(tzinfo=timezone.utc).timestamp() - source_time > stale_seconds
+		)
 	return row
 
 
 def totals(rows):
 	result = {
 		"station_count": len(rows),
-		"online_count": sum(r.connection_status == "NORMAL" for r in rows),
+		"online_count": sum(r.connection_status in ONLINE for r in rows),
 		"capacity_kw": sum(number(r.capacity_kw) or 0 for r in rows),
 	}
 	for field in [
@@ -240,12 +256,17 @@ def _refresh(station):
 		return
 	try:
 		doc = frappe.get_doc("Solar Station", station)
-		service.account_doc(doc.account)
+		account = service.account_doc(doc.account)
 		if not doc.present:
 			raise service.ProviderError(_("Station is no longer in the inventory."))
 		frappe.db.set_value("Solar Station", station, "production_status", "Running")
 		frappe.db.commit()
-		values = snapshot(doc)
+		if account.provider == "Enphase":
+			from wahni_solar.solar_monitor import enphase
+
+			values = enphase.snapshot(doc)
+		else:
+			values = snapshot(doc)
 		frappe.db.set_value("Solar Station", station, values)
 		frappe.db.commit()
 	except Exception as exc:

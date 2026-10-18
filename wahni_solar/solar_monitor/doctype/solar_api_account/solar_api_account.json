@@ -30,7 +30,8 @@
    "label": "Region",
    "fieldtype": "Select",
    "options": "India\nEurope\nAmericas",
-   "default": "India"
+   "default": "India",
+   "depends_on": "eval:doc.provider!=='Enphase'"
   },
   {
    "fieldname": "deye_credentials",
@@ -98,12 +99,12 @@
   },
   {
    "fieldname": "api_key",
-   "label": "Api Key",
+   "label": "API Key",
    "fieldtype": "Password"
   },
   {
    "fieldname": "client_id",
-   "label": "Client Id",
+   "label": "Client ID",
    "fieldtype": "Data"
   },
   {
@@ -113,8 +114,20 @@
   },
   {
    "fieldname": "redirect_uri",
-   "label": "Redirect Uri",
-   "fieldtype": "Data"
+   "label": "Redirect URI",
+   "fieldtype": "Data",
+   "description": "Leave empty to use Enphase's default page and paste the code it shows. To finish automatically, set it to https://<your-site>/api/method/wahni_solar.solar_monitor.api.enphase_callback and register the same URI on the Enphase application."
+  },
+  {
+   "fieldname": "enphase_username",
+   "label": "Enlighten Username",
+   "fieldtype": "Data",
+   "description": "Partner plan: installer Enlighten login used for the password grant, so no browser authorization is needed. Leave empty to use Authorize with Enphase instead."
+  },
+  {
+   "fieldname": "enphase_password",
+   "label": "Enlighten Password",
+   "fieldtype": "Password"
   },
   {
    "fieldname": "authentication",
@@ -272,6 +285,8 @@
   "client_id",
   "client_secret",
   "redirect_uri",
+  "enphase_username",
+  "enphase_password",
   "authentication",
   "access_token",
   "refresh_token",

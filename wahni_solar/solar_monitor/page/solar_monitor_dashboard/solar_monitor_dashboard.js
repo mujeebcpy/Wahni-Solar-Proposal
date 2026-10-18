@@ -123,6 +123,7 @@ frappe.pages["solar-monitor-dashboard"].on_page_load = function (wrapper) {
 					try {
 						const res = await call("check_alerts", {
 							account: account.get_value() || null,
+							provider: provider.get_value() || "Deye",
 						});
 						frappe.show_alert({
 							message: __(
@@ -317,7 +318,7 @@ frappe.pages["solar-monitor-dashboard"].on_page_load = function (wrapper) {
 		body.children(":not(style)").remove();
 		page.clear_primary_action();
 		page.clear_secondary_action();
-		if (provider.get_value() !== "Deye") {
+		if (!["Deye", "Enphase"].includes(provider.get_value())) {
 			body.append($("<p>").text(__("Integration planned.")));
 			return;
 		}
@@ -348,6 +349,7 @@ frappe.pages["solar-monitor-dashboard"].on_page_load = function (wrapper) {
 			page.set_primary_action(__("Update production"), async () => {
 				const res = await call("refresh_production", {
 					account: account.get_value() || null,
+					provider: provider.get_value() || "Deye",
 				});
 				frappe.show_alert({
 					message: __("Queued: {0}, running: {1}, cached: {2}", [

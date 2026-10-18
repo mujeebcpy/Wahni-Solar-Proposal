@@ -19,9 +19,16 @@
   },
   {
    "fieldname": "requests_per_minute",
-   "label": "Requests Per Minute",
+   "label": "Deye Requests Per Minute",
    "fieldtype": "Int",
    "default": 30
+  },
+  {
+   "fieldname": "enphase_requests_per_minute",
+   "label": "Enphase Requests Per Minute",
+   "fieldtype": "Int",
+   "default": 300,
+   "description": "Per Enphase application. Partner plan limit is 300 per minute; per-minute 429s are retried."
   },
   {
    "fieldname": "production_refresh_cooldown",
@@ -40,6 +47,7 @@
   "refresh_cooldown",
   "token_renewal_margin",
   "requests_per_minute",
+  "enphase_requests_per_minute",
   "production_refresh_cooldown",
   "alert_lookback_days"
  ],

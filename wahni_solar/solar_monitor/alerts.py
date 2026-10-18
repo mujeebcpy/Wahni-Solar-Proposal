@@ -1,4 +1,4 @@
-"""Deye station alerts, fetched only by explicit user actions."""
+"""Station alerts (Deye alert list, Enphase open alarms), fetched only by explicit user actions."""
 
 import hashlib
 import time
@@ -85,41 +85,52 @@ def station_alerts(account, station_id, start, end):
 	raise service.ProviderError(_("Provider alert list exceeded the pagination safety limit."))
 
 
+def hashed(account, identity):
+	return hashlib.sha256((account + "\0" + str(identity)).encode()).hexdigest()
+
+
 def alert_key(account, row):
 	identity = (
 		row.get("alertId") or f"{row.get('deviceSn')}:{row.get('alertCode')}:{row.get('alertStartTime')}"
 	)
-	return hashlib.sha256((account + "\0" + str(identity)).encode()).hexdigest()
+	return hashed(account, identity)
+
+
+def save(account, station, key, values, seen):
+	name = frappe.db.get_value(ALERT, {"alert_key": key}, "name")
+	doc = frappe.get_doc(ALERT, name) if name else frappe.new_doc(ALERT)
+	doc.update(dict(values, account=account, station=station, alert_key=key, last_seen=seen))
+	doc.save(ignore_permissions=True)
+
+
+def close_missing(station, seen, since=None):
+	"""Close open alerts (optionally only those started since a window start) not returned in this check."""
+	table = frappe.qb.DocType(ALERT)
+	condition = (table.station == station) & (table.status == "Open") & (table.last_seen < seen)
+	if since is not None:
+		condition &= table.alert_start >= since
+	frappe.qb.update(table).set(table.status, "Closed").where(condition).run()
 
 
 def upsert(account, station, row, seen):
-	key = alert_key(account, row)
-	name = frappe.db.get_value(ALERT, {"alert_key": key}, "name")
-	doc = frappe.get_doc(ALERT, name) if name else frappe.new_doc(ALERT)
 	impact, level = integer(row.get("impact")), integer(row.get("level"))
 	rank = severity(impact, level)
-	doc.update(
-		{
-			"account": account,
-			"station": station,
-			"alert_key": key,
-			"alert_id": str(row.get("alertId") or ""),
-			"alert_name": str(row.get("alertName") or row.get("protocolName") or _("Unnamed alert"))[:140],
-			"alert_code": str(row.get("alertCode") or ""),
-			"protocol_name": str(row.get("protocolName") or ""),
-			"device_sn": str(row.get("deviceSn") or ""),
-			"device_type": str(row.get("deviceType") or ""),
-			"impact": IMPACT.get(impact, ""),
-			"level": LEVEL.get(level, ""),
-			"severity": rank,
-			"priority": PRIORITY[rank],
-			"status": "Open" if integer(row.get("status")) == 1 else "Closed",
-			"alert_start": site_datetime(row.get("alertStartTime")),
-			"alert_end": site_datetime(row.get("alertEndTime")),
-			"last_seen": seen,
-		}
-	)
-	doc.save(ignore_permissions=True)
+	values = {
+		"alert_id": str(row.get("alertId") or ""),
+		"alert_name": str(row.get("alertName") or row.get("protocolName") or _("Unnamed alert"))[:140],
+		"alert_code": str(row.get("alertCode") or ""),
+		"protocol_name": str(row.get("protocolName") or ""),
+		"device_sn": str(row.get("deviceSn") or ""),
+		"device_type": str(row.get("deviceType") or ""),
+		"impact": IMPACT.get(impact, ""),
+		"level": LEVEL.get(level, ""),
+		"severity": rank,
+		"priority": PRIORITY[rank],
+		"status": "Open" if integer(row.get("status")) == 1 else "Closed",
+		"alert_start": site_datetime(row.get("alertStartTime")),
+		"alert_end": site_datetime(row.get("alertEndTime")),
+	}
+	save(account, station, alert_key(account, row), values, seen)
 
 
 def check_station(account, station, start, end):
@@ -127,13 +138,7 @@ def check_station(account, station, start, end):
 	for row in station_alerts(account, station.external_id, start, end):
 		upsert(account, station.name, row, seen)
 	# Open alerts inside the checked window that the provider no longer returns are gone.
-	table = frappe.qb.DocType(ALERT)
-	frappe.qb.update(table).set(table.status, "Closed").where(
-		(table.station == station.name)
-		& (table.status == "Open")
-		& (table.last_seen < seen)
-		& (table.alert_start >= site_datetime(start))
-	).run()
+	close_missing(station.name, seen, since=site_datetime(start))
 
 
 def enqueue(account):
@@ -175,9 +180,16 @@ def alerts_job(account):
 
 def _check(account):
 	try:
-		service.account_doc(account)
+		doc = service.account_doc(account)
 		frappe.db.set_value(service.ACCOUNT, account, "alert_status", "Running")
 		frappe.db.commit()
+		if doc.provider == "Enphase":
+			# Enphase returns the complete set of currently open alarms; no lookback window is needed.
+			from wahni_solar.solar_monitor import enphase
+
+			checker = enphase.check_station
+		else:
+			checker = check_station
 		end = int(time.time())
 		start = end - service.setting("alert_lookback_days", 30) * 86400
 		stations = frappe.get_all(
@@ -186,7 +198,7 @@ def _check(account):
 		failed = []
 		for station in stations:
 			try:
-				check_station(account, station, start, end)
+				checker(account, station, start, end)
 				# Commit per station so one failing station does not discard the others.
 				frappe.db.commit()
 			except Exception as exc:

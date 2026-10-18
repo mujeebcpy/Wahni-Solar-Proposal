@@ -1,4 +1,5 @@
 from collections import Counter
+from urllib.parse import quote
 
 import frappe
 from frappe import _
@@ -39,6 +40,78 @@ def test_connection(account: str):
 				service.ACCOUNT, account, {"connection_status": "Error", "authentication_error": str(exc)}
 			)
 			return {"status": "Error", "error": str(exc)}
+
+
+def enphase_account(account):
+	doc = service.account_doc(account)
+	if doc.provider != "Enphase":
+		frappe.throw(_("Select an enabled Enphase account."))
+	return doc
+
+
+@frappe.whitelist(methods=["POST"])
+def enphase_authorize_url(account: str):
+	"""Start the browser authorization; the one-time state ties the callback to this account."""
+	frappe.only_for(MANAGER_ROLES)
+	from wahni_solar.solar_monitor import enphase
+
+	doc = enphase_account(account)
+	state = frappe.generate_hash(length=32)
+	frappe.cache().set_value(
+		"solar-monitor-enphase-state:" + state,
+		{"account": account, "user": frappe.session.user},
+		expires_in_sec=900,
+	)
+	return {"url": enphase.authorize_url(doc, state), "redirect_uri": enphase.redirect_uri(doc)}
+
+
+def finish_authorization(account, code):
+	from wahni_solar.solar_monitor import enphase
+
+	try:
+		enphase.exchange_code(account, code)
+		frappe.db.set_value(
+			service.ACCOUNT, account, {"connection_status": "Connected", "authentication_error": ""}
+		)
+		return {"status": "Connected"}
+	except service.ProviderError as exc:
+		if isinstance(exc, service.Busy):
+			raise
+		frappe.db.set_value(
+			service.ACCOUNT, account, {"connection_status": "Error", "authentication_error": str(exc)}
+		)
+		return {"status": "Error", "error": str(exc)}
+
+
+@frappe.whitelist(methods=["POST"])
+def enphase_authorize(account: str, code: str):
+	"""Exchange an authorization code pasted from the Enphase redirect page."""
+	frappe.only_for(MANAGER_ROLES)
+	enphase_account(account)
+	return finish_authorization(account, code)
+
+
+@frappe.whitelist(methods=["GET"])
+def enphase_callback(code: str | None = None, state: str | None = None, error: str | None = None):
+	"""OAuth redirect target when the account's Redirect URI points at this method."""
+	frappe.only_for(MANAGER_ROLES)
+	key = "solar-monitor-enphase-state:" + (state or "")
+	pending = frappe.cache().get_value(key) if state else None
+	frappe.cache().delete_value(key)
+	if not pending or pending.get("user") != frappe.session.user:
+		frappe.throw(_("Authorization request expired or is invalid. Start again from the API account."))
+	account = pending["account"]
+	if error or not code:
+		message = _("Enphase authorization was not granted.")
+		frappe.db.set_value(
+			service.ACCOUNT, account, {"connection_status": "Error", "authentication_error": message}
+		)
+	else:
+		enphase_account(account)
+		finish_authorization(account, code)
+	frappe.db.commit()
+	frappe.local.response["type"] = "redirect"
+	frappe.local.response["location"] = "/app/solar-api-account/" + quote(account)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -134,7 +207,8 @@ def get_overview(
 		order_by="station_name",
 		page_length=0,
 	)
-	rows = [production.display(row) for row in rows]
+	stale_seconds = production.stale_after(provider)
+	rows = [production.display(row, stale_seconds) for row in rows]
 	summary = production.totals(rows)
 	station_names = {r.name: r.station_name or r.name for r in rows}
 	open_alerts = frappe.get_list(
@@ -183,8 +257,9 @@ def get_station(station: str):
 	doc = frappe.get_doc("Solar Station", station)
 	doc.check_permission("read")
 	row = frappe._dict({key: doc.get(key) for key in production.FIELDS})
+	provider = frappe.db.get_value(service.ACCOUNT, doc.account, "provider")
 	return {
-		"station": production.display(row),
+		"station": production.display(row, production.stale_after(provider)),
 		"devices": frappe.get_list(
 			"Solar Device",
 			filters={"station": station, "present": 1},
@@ -210,17 +285,24 @@ def refresh_station(station: str):
 	return production.enqueue(station)
 
 
+def enabled_accounts(provider, account):
+	if provider not in service.PROVIDERS:
+		frappe.throw(_("Unknown provider."))
+	accounts = frappe.get_all(service.ACCOUNT, filters={"provider": provider, "enabled": 1}, pluck="name")
+	if account and account not in accounts:
+		frappe.throw(_("Select an enabled {0} account.").format(provider))
+	return [account] if account else accounts
+
+
 @frappe.whitelist(methods=["POST"])
-def refresh_production(account: str | None = None):
+def refresh_production(account: str | None = None, provider: str = "Deye"):
 	frappe.only_for(MANAGER_ROLES)
 	from wahni_solar.solar_monitor import production
 
-	accounts = frappe.get_all(service.ACCOUNT, filters={"provider": "Deye", "enabled": 1}, pluck="name")
-	if account and account not in accounts:
-		frappe.throw(_("Select an enabled Deye account."))
+	accounts = enabled_accounts(provider, account)
 	rows = frappe.get_list(
 		"Solar Station",
-		filters={"account": ["in", [account] if account else accounts], "present": 1},
+		filters={"account": ["in", accounts], "present": 1},
 		pluck="name",
 		page_length=0,
 	)
@@ -236,14 +318,11 @@ def refresh_production(account: str | None = None):
 
 
 @frappe.whitelist(methods=["POST"])
-def check_alerts(account: str | None = None):
-	"""Queue an alert check covering every present station of one or all enabled Deye accounts."""
+def check_alerts(account: str | None = None, provider: str = "Deye"):
+	"""Queue an alert check covering every present station of one or all enabled provider accounts."""
 	frappe.only_for(MANAGER_ROLES)
-	accounts = frappe.get_all(service.ACCOUNT, filters={"provider": "Deye", "enabled": 1}, pluck="name")
-	if account and account not in accounts:
-		frappe.throw(_("Select an enabled Deye account."))
 	result = {"Queued": 0, "Running": 0, "Cached": 0}
-	for name in [account] if account else accounts:
+	for name in enabled_accounts(provider, account):
 		try:
 			state = alerts.enqueue(name)["status"]
 		except service.Busy:
