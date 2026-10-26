@@ -226,6 +226,29 @@ class TestReportSources(unittest.TestCase):
         })
         self.assertFalse(any(row["doctype"] == "Solar Package" for row in context["permissions"]))
 
+    def test_template_proposal_selects_library_by_saved_brand_and_panel_capacity(self):
+        records = {
+            ("Project", "P"): Record(name="P", customer="C", custom_solar_proposal="S"),
+            ("Customer", "C"): Record(name="C"),
+            ("Solar Proposal", "S"): Record(
+                name="S", proposal_to="Customer", party="C", package_name="PK", calculation_version="Templates v1",
+                brand="Enphase", panel_brand="Adani", panel_capacity_w=660, panel_count=7,
+                capacity_kw=3, actual_capacity_kw=4.62,
+            ),
+        }
+        library = [Record(name="Enphase Datasheet", category="Inverter Datasheet", brand="Enphase", file="/files/enphase.pdf"),
+                   Record(name="Vsole Datasheet", category="Inverter Datasheet", brand="Vsole", file="/files/vsole.pdf"),
+                   Record(name="Adani 660", category=PANEL_DOCUMENT, brand="Adani", panel_watt_peak=660, file="/files/660.pdf")]
+        with patch.object(source_module.frappe, "get_doc", side_effect=lambda dt, name: records[(dt, name)]), \
+                patch.object(source_module.frappe, "get_list", side_effect=lambda doctype, **kwargs: library
+                             if doctype == "Project Report Document" else []):
+            context = source_module.resolve_context("P", categories=("Inverter Datasheet", PANEL_DOCUMENT))
+        selected = {row["category"]: row for row in context["sources"]}
+        self.assertEqual(selected["Inverter Datasheet"]["name"], "Enphase Datasheet")
+        self.assertEqual(selected[PANEL_DOCUMENT]["name"], "Adani 660")
+        self.assertEqual(context["panel_watt_peak"], 660)
+        self.assertEqual(context["proposal"]["actual_capacity_kw"], 4.62)
+
     def test_legacy_context_uses_archived_phase_when_package_column_was_removed(self):
         records = {
             ("Project", "P"): Record(name="P", customer="C", custom_solar_proposal="S"),

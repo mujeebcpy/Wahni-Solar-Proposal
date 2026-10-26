@@ -52,6 +52,10 @@ doctype_js = {
     "Customer": "public/js/customer.js",
     "Project": "public/js/project.js",
     "Sales Order": "public/js/sales_order.js",
+    "Customer Vendor Agreement": "public/js/project_document.js",
+    "Customer KSEB Agreement": "public/js/project_document.js",
+    "Solar Installation Checklist": "public/js/project_document.js",
+    "Solar Completion Certificate": "public/js/project_document.js",
 }
 
 after_install = "wahni_solar.solar_project.setup.after_migrate"

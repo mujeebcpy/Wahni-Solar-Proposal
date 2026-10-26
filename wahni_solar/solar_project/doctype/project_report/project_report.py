@@ -5,6 +5,16 @@ from wahni_solar.solar_project.constants import ACTIVE_STATUSES
 
 
 class ProjectReport(Document):
+    def onload(self):
+        from wahni_solar.solar_project.api import available_outputs
+
+        self.set_onload("downloads", available_outputs(self))
+
+    def after_delete(self):
+        from wahni_solar.solar_project.api import clear_outputs
+
+        clear_outputs(self.name)
+
     def on_trash(self):
         # Administrator bypasses normal permission checks, so enforce this here too.
         if self.status in ACTIVE_STATUSES:

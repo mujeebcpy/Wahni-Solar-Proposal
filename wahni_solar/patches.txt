@@ -7,3 +7,4 @@ wahni_solar.patches.archive_legacy_solar_configuration
 # Patches added in this section will be executed after doctypes are migrated
 wahni_solar.patches.retire_legacy_solar_configuration
 wahni_solar.patches.delete_unused_legacy_solar_configuration
+wahni_solar.patches.delete_generated_project_files

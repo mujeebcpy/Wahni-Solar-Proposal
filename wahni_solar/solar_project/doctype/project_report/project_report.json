@@ -9,10 +9,8 @@
   "status",
   "progress",
   "message",
-  "report_pdf",
-  "sld_qet",
-  "result",
-  "input_snapshot"
+  "available_until",
+  "result"
  ],
  "fields": [
   {
@@ -53,16 +51,11 @@
    "read_only": 1
   },
   {
-   "fieldname": "report_pdf",
-   "fieldtype": "Attach",
-   "label": "Project Report PDF",
-   "read_only": 1
-  },
-  {
-   "fieldname": "sld_qet",
-   "fieldtype": "Attach",
-   "label": "Editable SLD Drawing",
-   "read_only": 1
+   "fieldname": "available_until",
+   "fieldtype": "Datetime",
+   "label": "Download Available Until",
+   "read_only": 1,
+   "description": "Generated files are not stored. Generate the report again after this time."
   },
   {
    "fieldname": "result",
@@ -70,13 +63,6 @@
    "label": "Included Documents and Missing Information",
    "options": "JSON",
    "read_only": 1
-  },
-  {
-   "fieldname": "input_snapshot",
-   "fieldtype": "Attach",
-   "label": "Input Snapshot",
-   "read_only": 1,
-   "hidden": 1
   }
  ],
  "permissions": [

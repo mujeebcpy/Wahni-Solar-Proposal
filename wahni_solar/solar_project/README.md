@@ -17,9 +17,8 @@ bench restart
 Migration creates the Project fields, four Project document DocTypes, seven print
 formats, and the Project Documents workspace group. It seeds static library PDFs
 and QET templates only; fillable templates are no longer seeded or selected.
-Existing library records and historical files are preserved. A worker
-serving the `long` queue must be running. The site's file size limit must accommodate
-the combined report and its input archive; adjust it if generation reports a size error.
+Existing library records are preserved. Generated files are not stored as attachments
+(see *Generating and editing*), so they do not count against the site's file size limit.
 
 ## Maintaining documents
 
@@ -64,19 +63,20 @@ and System Managers can maintain the library.
 
 On Project, upload customer-specific PDFs in **Report Documents**, choosing their
 categories. A Project upload overrides the automatic source, including cover/end
-pages, annexures and manually completed forms. Replacing a Project attachment does
-not alter previous generations.
+pages, annexures and manually completed forms. Replacing a Project upload affects
+the next generation.
 
 For panels, create a **Project Report Document** with category **Panel Datasheet and BIS**,
 Equipment Brand (e.g. `Adani`), **Panel Watt Peak (Wp)** (e.g. `630`), and one Document
-attachment containing both the datasheet and BIS. Select **Panel Item** in
-the Project's Project Report section and set **Watt Peak (Wp)** on that Item.
-The brand comes from the linked Solar Proposal.
+attachment containing both the datasheet and BIS. The brand comes from the linked
+Solar Proposal. Wp comes from the **Panel Item** selected in the Project's Project
+Report section (its **Watt Peak (Wp)**), otherwise from the proposal's **Panel
+Capacity** (`panel_capacity_w`).
 Both must match one enabled library record; `Adani / 600` and `Adani / 630` are separate
 records. Brand matching ignores case and surrounding spaces. An ambiguous proposal
 brand such as `Premier/Adani` does not choose either manufacturer's document.
 Wp is the individual module rating, not the plant's total kW; it is not inferred from
-capacity, panel count, or global default settings. Missing/ambiguous matches are listed
+system capacity, panel count, or global default settings. Missing/ambiguous matches are listed
 as omissions. A combined Project upload still takes precedence without requiring Wp.
 
 The combined PDF is included once, after Project Completion Report and before Panel
@@ -85,15 +85,14 @@ and Panel BIS records/uploads remain stored, but are no longer selected for new 
 upload a combined replacement with brand and Wp and disable old library records.
 The library form hides the old categories from new uploads. An existing legacy record
 retains its current category until you change it; new separate panel records are rejected.
-Previously queued snapshots finish using their original separate sections.
 
 ## Generating and editing
 
-**Generate → Generate Project Report** automatically creates one record in each of
-**Customer Vendor Agreement**, **Customer KSEB Agreement**, **Solar Installation
-Checklist**, and **Solar Completion Certificate** for the Project. A required,
-unique Project link and a Project row lock prevent duplicate records. Generation
-reuses existing records and never resets saved edits or deliberately cleared defaults.
+A Project has at most one record in each of **Customer Vendor Agreement**,
+**Customer KSEB Agreement**, **Solar Installation Checklist**, and **Solar Completion
+Certificate** (a required, unique Project link). Generating never creates them: a
+saved record is printed with its edits and overrides; otherwise the DocType's
+defaults are printed. A record is created only when a user chooses **Edit Details**.
 
 Each record stores only document-specific inputs. Customer names/addresses,
 capacity, price, equipment, contacts, and bank details are resolved from the linked
@@ -105,13 +104,15 @@ serials, and measured resistance values from the original PDFs are not defaults.
 Agreement dates default on creation and are not recalculated when printing.
 
 The **Solar Project → Project Documents** workspace group opens the four lists and
-KSEB Grid Check. Project's dashboard and **Project Documents** menu open its forms.
-No manual form preparation is required before report generation. Forms remain
+KSEB Grid Check; Project's dashboard links to existing records. No manual form
+preparation is required before report generation. Forms remain
 editable and do not require submission.
 
-Project's **Generate** menu provides SLD, both agreements, Check List, Project
-Completion Report, and the complete report. Each PDF action selects its mapped
-print format automatically and saves a private Project attachment. KSEB Grid
+Project's single **Generate** menu provides SLD, both agreements, Check List, Project
+Completion Report, and the complete Project Report. Each action selects its mapped
+print format automatically and returns the file to the browser for download; nothing
+is attached to the Project. A document's download dialog offers **Edit Details**,
+which opens (or creates) its record. Generate again whenever a fresh copy is needed. KSEB Grid
 Check's Annexure I/II/III buttons save pending edits and render the corresponding
 format as private Grid Check attachments. Native annexures use bundled Manjari
 Regular/Bold fonts; no external font download is needed at print time.
@@ -123,16 +124,24 @@ upload takes precedence, allowing a signed or externally completed copy to be
 included. Old Grid Check attachment filenames are no longer used to select an
 annexure implicitly. A missing Grid Check is reported as an omission, not created.
 
-Rendering uses Frappe's standard HTML/Jinja print pipeline. At generation time,
-resolved values and rendered PDF bytes are frozen in the private report snapshot.
-Later source/record edits affect future prints, not queued or historical reports.
-The worker merges the frozen PDFs. Missing fields produce warnings with edit links;
-existing mandatory annexure validation and partial-report handling are retained.
+Rendering uses Frappe's standard HTML/Jinja print pipeline. The complete report is
+built within the request, because print formats load assets through the request's
+site URL (a background worker has no request and wkhtmltopdf times out). It resolves
+current sources, renders the documents and annexures (annexures are not saved on the
+Grid Check) and merges them. The merged PDF and editable SLD are kept in the Redis cache for six hours
+(`REPORT_OUTPUT_SECONDS`) and downloaded from the Project dialog or the Project Report
+form. The Project Report record keeps only the status and the included/omitted list.
+After expiry, generate the report again. Missing fields produce warnings with edit
+links; existing mandatory annexure validation and partial-report handling are retained.
 
 The consumer phase comes from Grid Check `phase`; plant connection type in the
-SLD continues to come from Solar Package `connection_type`. Checklist/annexure
-capacity comes from Grid Check; agreement capacity and cost come from Solar
-Proposal. Customer address and equipment selection preserve the existing fallback
+SLD comes from the Solar Proposal's Number of Phases (`connection_type`). Package
+metadata (brand, system and grid type) is read from the proposal's saved snapshot for
+Templates v1 proposals and from Solar Package for legacy ones; inverter documents and
+SLD templates are selected by that brand. Checklist/annexure capacity comes from Grid
+Check. Agreement and SLD plant capacity use the proposal's Installed Panel Capacity
+(`actual_capacity_kw`, from the selected panel count), falling back to `capacity_kw`
+for legacy proposals; system price is `project_cost`. Customer address and equipment selection preserve the existing fallback
 and ambiguity rules. Bank data is resolved only when permitted.
 
 SLD generation still personalizes a QElectroTech `.qet` file. Open it in
@@ -142,26 +151,20 @@ City/County, falling back to the KSEB address.
 
 ### Upgrade compatibility
 
-Historical PDFs and explicit overrides are not rewritten or imported into new
-DocTypes. All four records are created lazily on the next generation request.
+Explicit Project overrides are not rewritten or imported into new DocTypes.
+
 Existing Grid Checks receive intentional static annexure defaults through a
 one-time `wahni_kseb` patch; later edits/cleared values are never backfilled again.
 
-Snapshots without `snapshot_version` retain their legacy worker behavior, so
-already queued reports can finish. Form filling is retained only for these old
-snapshots; version 2 snapshots do not call it. Drain all old queued jobs before
-removing this compatibility branch in a future release. Keep `pypdf` for PDF
-merging and proposal artwork processing.
+Keep `pypdf` for PDF merging and proposal artwork processing.
 
-Input archives and output files are private. Report access follows Project read
-permissions. Generation requires Project write permission and reads source documents
-under the requesting user's permissions. Interrupted jobs can be regenerated.
+Report downloads follow Project read permissions. Generation requires Project write permission and reads source documents
+under the requesting user's permissions.
 
 System Managers and Projects Managers with access to the Project, and Administrator,
 can delete finished or failed report records. Queued/running reports cannot be deleted.
 Deleting the latest report restores the latest remaining generation on Project, or
-clears the link if none remains. Generated PDFs and QET files already attached directly
-to Project remain there; the report's input snapshot follows Frappe's attachment cleanup.
+clears the link if none remains. Deleting a report also discards its cached files.
 
 ## Tests
 
@@ -183,9 +186,9 @@ python -m unittest wahni_solar.solar_project.tests.test_generation -v
 
 | Suite | Coverage |
 | --- | --- |
-| `test_documents.py` | Field mapping, legacy queued-snapshot form support, merging, SLD values |
+| `test_documents.py` | Field mapping, installed capacity/panel Wp, form filling, merging, SLD values |
 | `test_sources.py` | Customer address fallback, Items, library selection, fresh annexures and overrides |
-| `test_api.py` | Standalone actions, request permissions, duplicate requests, snapshots |
+| `test_api.py` | Standalone downloads, request permissions, duplicate requests, annexure rendering |
 | `test_generation.py` | Report outputs, agreement exclusion, upload preservation, failures |
 | `test_permissions.py` | Report deletion permissions and latest-report links |
 | `test_equipment.py` | Brand search and package validation |
@@ -196,7 +199,7 @@ the app's Frappe and pypdf dependencies, but no running site or database. They d
 not change site records. Setup checks cover behavior still used on install/migrate;
 obsolete field migrations and historical library compatibility checks are excluded.
 
-After deployment, verify the Generate menu, actual worker progress, file permissions,
+After deployment, verify the Generate menu, report downloads, file permissions,
 and library replacement workflow on a test Project. Those site/browser checks are
 outside this unit suite.
 
@@ -207,9 +210,9 @@ python -m unittest wahni_solar.solar_project.tests.test_project_documents -v
 python -m unittest wahni_kseb.annexure.test_printing -v
 ```
 
-On a staging site, run migration and generate a report twice from the same Project.
-Confirm exactly four records exist, edit a default (including clearing it), and
-regenerate. Change a source value and verify the next PDF changes while the earlier
-report stays unchanged. Also check a restricted user's list/print access and a
+On a staging site, run migration and generate a report from a Project without
+document records; confirm none are created. Use **Edit Details**, change a default
+(including clearing it) and an override, and regenerate. Change a source value and
+verify the next PDF changes. Also check a restricted user's list/print access and a
 signed Project override. These database/browser checks are separate from the
 site-independent regression suite.

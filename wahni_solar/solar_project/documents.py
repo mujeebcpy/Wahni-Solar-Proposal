@@ -30,6 +30,23 @@ def kw(value):
         return ""
 
 
+def installed_kw(proposal):
+    """Installed capacity follows the selected panel count; older proposals only have capacity_kw."""
+    return kw(proposal.get("actual_capacity_kw")) or kw(proposal.get("capacity_kw"))
+
+
+def panel_watt_peak(context):
+    """Panel Item rating, else the Project/proposal panel wattage, as "660 Wp"."""
+    panel = context.get("panel") or {}
+    for value in (panel.get("custom_panel_watt_peak"), context.get("panel_watt_peak")):
+        try:
+            if float(value) > 0:
+                return f"{float(value):g} Wp"
+        except (TypeError, ValueError):
+            continue
+    return ""
+
+
 def form_values(context):
     grid = context.get("grid") or {}
     lead = context.get("lead") or {}
@@ -57,16 +74,17 @@ def form_values(context):
         "bank_account_number": bank.get("bank_account_no"),
         "supplier_installer_designer": "Wahni Green Technologies Pvt Ltd",
         "plant_type": package.get("grid_type"),
-        "plant_total_capacity": kw(grid.get("proposed_solar_capacity")),
+        "plant_total_capacity": kw(grid.get("proposed_solar_capacity")) or installed_kw(proposal),
         "inverter_make_and_serial_number": package.get("brand"),
         "inverter_type": package.get("grid_type"),
         "voltage_and_number_of_phase": phase(grid.get("phase")),
     }
-    # Proposal brand/count are known, but panel wattage and installed serials are not.
+    # Proposal brand/count/wattage are known, but installed serials are not.
     panel_brand = proposal.get("panel_brand")
     if panel_brand and "/" not in panel_brand and proposal.get("panel_count"):
+        rating = panel_watt_peak(context)
         checklist["pv_installations_make_and_total_number"] = (
-            f"{panel_brand} - {proposal['panel_count']} nos"
+            f"{panel_brand}{' ' + rating if rating else ''} - {proposal['panel_count']} nos"
         )
     completion = {
         "installation_owner_name": grid.get("consumer_name"),
@@ -104,15 +122,9 @@ def agreement_values(context):
         "name": customer.get("customer_name") or grid.get("consumer_name"),
         "consumer_no": grid.get("consumer_no"),
         "customer_address": postal_address,
-        "system_capacity": kw(proposal.get("capacity_kw")),
+        "system_capacity": installed_kw(proposal),
     }
-    panel_capacity = ""
-    try:
-        watt_peak = float(panel.get("custom_panel_watt_peak"))
-        if watt_peak > 0:
-            panel_capacity = f"{watt_peak:g} Wp"
-    except (TypeError, ValueError):
-        pass
+    panel_capacity = panel_watt_peak(context)
     kseb = {**common, "customer_pincode": pincode, "electrical_section": grid.get("section")}
     vendor = {
         **common,
@@ -234,7 +246,7 @@ def personalise_qet(content, context):
         "cnsnumb": text(grid.get("consumer_no")),
         "mbl": text(grid.get("registered_mobile") or lead.get("mobile_no")),
         "cntrdmd": kw(proposal.get("capacity_kw")),
-        "plntcpt": kw(proposal.get("capacity_kw")),
+        "plntcpt": installed_kw(proposal),
         "cntype": phase(grid.get("phase")),
         "plntype": phase(package.get("connection_type")),
     }

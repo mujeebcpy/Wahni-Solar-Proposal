@@ -67,7 +67,7 @@ def select_library(entries, category, brand, item_codes, panel_watt_peak=None):
     brand = (brand or "").strip().casefold()
     if category == PANEL_DOCUMENT:
         if not brand or cint(panel_watt_peak) <= 0:
-            return None, "Set the linked Solar Proposal's panel brand and select a Panel Item on the Project with a positive Watt Peak (Wp)."
+            return None, "Set the linked Solar Proposal's panel brand and panel capacity, or select a Panel Item on the Project with a positive Watt Peak (Wp)."
         matches = [entry for entry in entries if entry.category == category
                    and (entry.brand or "").strip().casefold() == brand
                    and cint(entry.get("panel_watt_peak")) == cint(panel_watt_peak)]
@@ -201,16 +201,21 @@ def resolve_context(project_name, categories=None, include_sources=True):
                 if not package_context.get(key) and proposal.get(key):
                     package_context[key] = proposal.get(key)
 
+    # The Project's Panel Item is authoritative; otherwise use the proposal's selected panel wattage.
+    panel_watt_peak = panel_item.get("custom_panel_watt_peak") if panel_item else None
+    if cint(panel_watt_peak) <= 0 and proposal and cint(proposal.get("panel_capacity_w")) > 0:
+        panel_watt_peak = proposal.get("panel_capacity_w")
     context = {
         "project": project.name,
         "panel_item": panel_item.name if panel_item else None,
-        "panel_watt_peak": panel_item.get("custom_panel_watt_peak") if panel_item else None,
+        "panel_watt_peak": panel_watt_peak,
         "customer": fields(customer, "customer_name"),
         "customer_address": fields(address, "address_line1 address_line2 city county state country pincode"),
         "panel": fields(panel_item, "brand custom_model custom_panel_watt_peak"),
         "grid": fields(grid, "consumer_name consumer_no customer_address registered_mobile division subdivision section tariff connected_load proposed_solar_capacity phase"),
         "lead": fields(lead, "email_id mobile_no phone"),
-        "proposal": fields(proposal, "capacity_kw panel_count panel_brand project_cost"),
+        "proposal": fields(proposal, "capacity_kw actual_capacity_kw panel_capacity_w panel_count inverter_count "
+                                     "panel_brand project_cost"),
         "package": package_context,
         "bank": fields(bank, "account_name bank bank_account_no branch_code"),
         "permissions": refs,
@@ -258,7 +263,8 @@ def resolve_context(project_name, categories=None, include_sources=True):
             if invoice:
                 source.update(invoice=invoice.name, origin="Sales Invoice", doctype="Sales Invoice", name=invoice.name)
         else:
-            brand = (proposal.get("panel_brand") if proposal else None) if category.startswith("Panel ") else (package.brand if package else None)
+            # Templates v1 proposals keep their package brand in the proposal snapshot.
+            brand = (proposal.get("panel_brand") if proposal else None) if category.startswith("Panel ") else package_context.get("brand")
             entry, reason = select_library(library, category, brand, item_codes, context["panel_watt_peak"])
             if entry:
                 source.update(url=entry.file, origin="Library", doctype="Project Report Document", name=entry.name,

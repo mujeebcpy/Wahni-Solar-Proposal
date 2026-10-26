@@ -12,6 +12,7 @@
   "project",
   "source_details",
   "source_preview",
+  "overrides",
   "document_details",
   "dc_db",
   "ac_db",
@@ -51,6 +52,13 @@
    "fieldname": "source_preview",
    "fieldtype": "HTML",
    "label": "Source Details"
+  },
+  {
+   "fieldname": "overrides",
+   "fieldtype": "JSON",
+   "label": "Overridden Project Details",
+   "hidden": 1,
+   "description": "Only values changed from the linked records are stored here."
   },
   {
    "fieldname": "document_details",
@@ -204,7 +212,7 @@
  "sort_field": "modified",
  "sort_order": "DESC",
  "creation": "2026-10-01 18:56:45.000000",
- "modified": "2026-10-01 18:56:45.000000",
+ "modified": "2026-10-26 18:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator"
 }

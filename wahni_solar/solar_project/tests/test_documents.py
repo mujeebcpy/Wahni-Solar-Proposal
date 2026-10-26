@@ -212,3 +212,16 @@ class TestReportDocuments(unittest.TestCase):
         values = form_values(self.context)["Check List"]
         self.assertEqual(values["bank_account_number"], "")
         self.assertNotIn("pv_installations_make_and_total_number", values)
+
+    def test_template_proposals_use_installed_capacity_and_panel_wattage(self):
+        self.context["proposal"].update(capacity_kw=3, actual_capacity_kw=4.62, panel_count=7)
+        self.context["panel_watt_peak"] = 660
+        values = form_values(self.context)
+        self.assertEqual(values["Customer Vendor Agreement"]["system_capacity"], "4.62kW")
+        self.assertEqual(values["Customer Vendor Agreement"]["solar_panel_capacity"], "660 Wp")
+        self.assertEqual(values["Check List"]["pv_installations_make_and_total_number"], "Adani 660 Wp - 7 nos")
+        qet, _ = personalise_qet((TEMPLATES / "SLD_Enphase.qet").read_bytes(), self.context)
+        self.assertEqual(ET.fromstring(qet).find(".//property[@name='plntcpt']").text, "4.62kW")
+        # The Project's Panel Item rating takes precedence over the proposal wattage.
+        self.context["panel"] = {"custom_panel_watt_peak": 630}
+        self.assertEqual(form_values(self.context)["Customer Vendor Agreement"]["solar_panel_capacity"], "630 Wp")

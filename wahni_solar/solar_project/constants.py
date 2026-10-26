@@ -35,3 +35,6 @@ OPTIONAL_SECTIONS = {"Cover Page", "End Page", "Sales Invoice"}
 FORM_SECTIONS = {"Check List", "Project Completion Report"}
 ANNEXURES = {"Annexure I": 1, "Annexure II": 2, "Annexure III": 3}
 ACTIVE_STATUSES = ("Queued", "Running")
+# Generated report files are cached briefly for download and never stored as attachments.
+REPORT_OUTPUTS = {"pdf": "Project-Report.pdf", "qet": "SLD.qet"}
+REPORT_OUTPUT_SECONDS = 6 * 60 * 60

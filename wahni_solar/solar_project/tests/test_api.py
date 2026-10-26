@@ -1,100 +1,71 @@
-"""Generation requests, annexure reuse and input snapshots."""
+"""Generation requests, on-demand annexures and downloads."""
 
+import base64
 import hashlib
-import json
 import unittest
 from inspect import unwrap
-from io import BytesIO
 from unittest.mock import MagicMock, patch
-from zipfile import ZipFile
 
 import frappe
 
 from wahni_solar.solar_project import api
 from wahni_solar.solar_project.constants import AGREEMENT_SECTIONS
-from wahni_solar.solar_project.documents import read_pdf
-from wahni_solar.solar_project.tests.helpers import Record, TEMPLATES
+from wahni_solar.solar_project.tests.helpers import Record
 
 
 class TestReportAPI(unittest.TestCase):
-    def test_missing_annexure_reuses_kseb_generator(self):
-        grid = MagicMock()
-        generate = MagicMock(return_value={"file_url": "/private/files/generated.pdf"})
-        fake = MagicMock()
-        fake.get_doc.return_value = grid
-        fake.get_all.return_value = []
-        fake.get_attr.return_value = generate
-        with patch.object(api, "frappe", fake):
+    def grid(self, **values):
+        return Record({"doctype": "KSEB Grid Check", "name": "G", "consumer_name": "C", "consumer_no": "1",
+                       "proposed_solar_capacity": 3, **values})
+
+    def test_annexures_are_rendered_without_saving_on_grid_check(self):
+        grid = self.grid()
+        with patch.object(api, "frappe") as fake:
+            fake.get_doc.return_value = grid
+            fake.get_print.return_value = b"annexure"
             for number in (1, 2, 3):
-                self.assertEqual(api._ensure_annexure("G", number)["file_url"], "/private/files/generated.pdf")
-                fake.get_attr.assert_called_with(f"wahni_kseb.api.generate_annexure{number}")
-        generate.assert_called_with(kseb_grid_check="G")
-        grid.check_permission.assert_any_call("write")
-        self.assertIn("FOR UPDATE", fake.db.sql.call_args.args[0])
-
-    def test_old_annexure_attachments_are_not_implicitly_reused(self):
-        fake = MagicMock()
-        fake.get_all.return_value = [Record(file_name="Annexure-1-G.pdf", file_url="/files/stale.pdf")]
-        fake.get_attr.return_value.return_value = {"file_url": "/private/files/fresh.pdf"}
-        with patch.object(api, "frappe", fake):
-            self.assertEqual(api._ensure_annexure("G", 1)["file_url"], "/private/files/fresh.pdf")
+                self.assertEqual(api._render_annexure("G", number), b"annexure")
+                self.assertEqual(fake.get_print.call_args.kwargs["print_format"], f"KSEB Annexure {'I' * number}")
         fake.get_all.assert_not_called()
-        fake.get_attr.return_value.assert_called_once_with(kseb_grid_check="G")
-
-    def test_annexure_generation_requires_grid_write_permission(self):
-        grid = MagicMock()
-        grid.check_permission.side_effect = [None, frappe.PermissionError]
-        fake = MagicMock()
-        fake.get_doc.return_value = grid
-        fake.get_all.return_value = []
-        with patch.object(api, "frappe", fake):
-            with self.assertRaises(frappe.PermissionError):
-                api._ensure_annexure("G", 1)
         fake.get_attr.assert_not_called()
 
-    def test_snapshot_generates_only_missing_annexures_and_records_failures(self):
-        context = {"sources": [
+    def test_annexure_rendering_requires_grid_access_and_details(self):
+        with patch.object(api, "frappe") as fake:
+            fake.get_doc.return_value = self.grid(denied=True)
+            with self.assertRaises(frappe.PermissionError):
+                api._render_annexure("G", 1)
+            fake.get_doc.return_value = self.grid(consumer_no=None)
+            with self.assertRaisesRegex(ValueError, "Consumer Number"):
+                api._render_annexure("G", 1)
+            fake.get_print.assert_not_called()
+
+    def test_rendering_generates_annexures_and_records_failures(self):
+        context = {"warnings": [], "sources": [
             {"category": "Annexure I", "url": "/files/existing.pdf", "origin": "Project upload"},
             {"category": "Annexure II", "name": "G", "annexure_number": 2},
             {"category": "Annexure III", "name": "G", "annexure_number": 3},
         ]}
-        with patch.object(api, "_ensure_annexure", side_effect=[{"file_url": "/files/new.pdf"}, ValueError("Solar capacity is missing")]) as generate, \
+        with patch.object(api, "_render_annexure", side_effect=[b"new", ValueError("Solar capacity is missing")]) as render, \
                 patch.object(api, "read_file", side_effect=lambda url: (url.encode(), {})):
-            snapshot = api._snapshot(context)
-        self.assertEqual([call.args for call in generate.call_args_list], [("G", 2), ("G", 3)])
-        with ZipFile(BytesIO(snapshot)) as archive:
-            saved = json.loads(archive.read("context.json"))["sources"]
-            self.assertEqual(archive.read(saved[0]["archive_path"]), b"/files/existing.pdf")
-            self.assertEqual(archive.read(saved[1]["archive_path"]), b"/files/new.pdf")
-            self.assertNotIn("archive_path", saved[2])
-            self.assertIn("Solar capacity is missing", saved[2]["reason"])
-
-    def test_snapshot_keeps_original_bytes_after_library_replacement(self):
-        context = {"sources": [{"category": "Cover Page", "url": "/files/cover.pdf"}]}
-        original = b"original bytes"
-        with patch.object(api, "read_file", return_value=(original, {"sha256": hashlib.sha256(original).hexdigest()})):
-            snapshot = api._snapshot(context)
-        with ZipFile(BytesIO(snapshot)) as archive:
-            saved = json.loads(archive.read("context.json"))
-            self.assertEqual(archive.read(saved["sources"][0]["archive_path"]), original)
-            self.assertEqual(saved["sources"][0]["sha256"], hashlib.sha256(original).hexdigest())
+            contents = api._render_sources("P", context)
+        self.assertEqual([call.args for call in render.call_args_list], [("G", 2), ("G", 3)])
+        self.assertEqual(contents, {"Annexure I": b"/files/existing.pdf", "Annexure II": b"new"})
+        self.assertIn("Solar capacity is missing", context["sources"][2]["reason"])
+        self.assertEqual(context["sources"][1]["sha256"], hashlib.sha256(b"new").hexdigest())
 
     def test_missing_invoice_is_not_rendered(self):
-        context = {"sources": [{"category": "Sales Invoice", "reason": "No document available."}]}
+        context = {"warnings": [], "sources": [{"category": "Sales Invoice", "reason": "No document available."}]}
         with patch.object(api.frappe, "get_print") as render:
-            api._snapshot(context)
+            self.assertEqual(api._render_sources("P", context), {})
             render.assert_not_called()
 
-    def test_unreadable_file_does_not_prevent_other_snapshots(self):
-        context = {"sources": [{"category": "Cover Page", "url": "/files/a.pdf"},
-                               {"category": "End Page", "url": "/files/b.pdf"}]}
+    def test_unreadable_file_does_not_prevent_other_documents(self):
+        context = {"warnings": [], "sources": [{"category": "Cover Page", "url": "/files/a.pdf"},
+                                               {"category": "End Page", "url": "/files/b.pdf"}]}
         with patch.object(api, "read_file", side_effect=[ValueError("bad file"), (b"good", {})]):
-            snapshot = api._snapshot(context)
-        with ZipFile(BytesIO(snapshot)) as archive:
-            sources = json.loads(archive.read("context.json"))["sources"]
-            self.assertIn("bad file", sources[0]["reason"])
-            self.assertNotIn("archive_path", sources[0])
-            self.assertEqual(archive.read(sources[1]["archive_path"]), b"good")
+            contents = api._render_sources("P", context)
+        self.assertIn("bad file", context["sources"][0]["reason"])
+        self.assertEqual(contents, {"End Page": b"good"})
 
     def test_project_upload_categories_cannot_repeat(self):
         doc = Record(custom_report_attachments=[Record(category="Cover Page", file=None),
@@ -126,26 +97,23 @@ class TestReportAPI(unittest.TestCase):
                         api.validate_project(doc)
                 fake.db.get_value.assert_called_once_with("Item", "ITEM", "item_group")
 
-    def test_repeated_generation_returns_running_report_without_new_snapshot(self):
-        report = Record(name="R", project="P", status="Running")
-        fake = MagicMock()
-        fake.get_doc.side_effect = lambda dt, name: report if dt == "Project Report" else Record(name="P")
-        fake.get_all.return_value = ["R"]
-        with patch.object(api, "frappe", fake), patch.object(api, "_recover_interrupted"), \
-                patch.object(api, "_snapshot") as snapshot, \
-                patch.object(frappe.local, "flags", frappe._dict(in_test=True), create=True):
-            result = api.generate_project_report("P")
-        self.assertEqual(result["name"], "R")
-        self.assertIn("FOR UPDATE", fake.db.sql.call_args.args[0])
-        snapshot.assert_not_called()
-
-    def test_interrupted_job_is_marked_failed(self):
-        from datetime import datetime, timedelta
-        report = Record(name="R", project="P", status="Running", modified=datetime.now() - timedelta(minutes=5))
-        with patch.object(api, "get_job_status", return_value="failed"), patch.object(api, "_project_status"), \
-                patch.object(api, "now_datetime", return_value=datetime.now()):
-            api._recover_interrupted(report)
-        self.assertEqual(report.status, "Failed")
+    def test_report_download_requires_read_permission_and_cached_output(self):
+        response = frappe._dict()
+        with patch.object(api, "frappe") as fake:
+            fake.local.response = response
+            fake.throw.side_effect = lambda message: (_ for _ in ()).throw(ValueError(message))
+            fake.get_doc.return_value = Record(name="R", project="P")
+            fake.cache.get_value.return_value = b"%PDF"
+            api.download_project_report("R", "pdf")
+            self.assertEqual((response.filename, response.filecontent, response.type), ("P-Project-Report.pdf", b"%PDF", "pdf"))
+            fake.cache.get_value.return_value = None
+            with self.assertRaisesRegex(ValueError, "no longer available"):
+                api.download_project_report("R", "qet")
+            with self.assertRaises(ValueError):
+                api.download_project_report("R", "zip")
+            fake.get_doc.return_value = Record(name="R", project="P", denied=True)
+            with self.assertRaises(frappe.PermissionError):
+                api.download_project_report("R", "pdf")
 
     def test_standalone_outputs_use_mapped_formats_or_explicit_overrides(self):
         from wahni_solar.solar_project.project_documents import DOCUMENT_TYPES
@@ -153,34 +121,31 @@ class TestReportAPI(unittest.TestCase):
             record = Record(doctype=doctype, name="D", project="P")
             context = {"sources": [{"category": category, "document_type": doctype}], "warnings": []}
             with self.subTest(category=category), patch.object(api, "frappe") as fake, \
-                    patch.object(api, "ensure_documents", return_value={category: record}) as ensure, \
+                    patch.object(api, "get_document", return_value=record) as get_document, \
                     patch.object(api, "resolve_context", return_value=context), \
-                    patch.object(api, "render_document", return_value=(b"native-pdf", {"missing_fields": [], "warnings": []})) as render, \
-                    patch.object(api, "fill_form") as fill, \
-                    patch.object(api, "save_file", return_value=Record(file_url="/private/files/output")) as save:
+                    patch.object(api, "render_document", return_value=(b"native-pdf", {"missing_fields": [], "warnings": []})) as render:
                 fake.get_doc.return_value = Record(name="P")
                 result = unwrap(api.generate_project_document)("P", category)
-                ensure.assert_called_once_with("P", (category,))
+                get_document.assert_called_once_with("P", category)
                 render.assert_called_once_with(record)
-                fill.assert_not_called()
-                self.assertEqual(save.call_args.args[1:], (b"native-pdf", "Project", "P"))
-                self.assertTrue(save.call_args.kwargs["is_private"])
+                self.assertEqual(base64.b64decode(result["content"]), b"native-pdf")
+                self.assertEqual(result["filename"], f"P-{category.replace(' ', '-')}.pdf")
+                self.assertEqual(result["content_type"], "application/pdf")
                 self.assertEqual(result["document"], {"doctype": doctype, "name": "D"})
 
     def test_standalone_agreement_override_is_not_regenerated(self):
         record = Record(doctype="Customer KSEB Agreement", name="D")
         source = {"category": "KSEB Agreement", "url": "/files/signed.pdf", "origin": "Project upload"}
         with patch.object(api, "frappe") as fake, \
-                patch.object(api, "ensure_documents", return_value={"KSEB Agreement": record}), \
+                patch.object(api, "get_document", return_value=record), \
                 patch.object(api, "resolve_context", return_value={"sources": [source], "warnings": []}), \
                 patch.object(api, "render_document") as render, \
                 patch.object(api, "read_file", return_value=(b"signed", {})), \
-                patch.object(api, "select_pdf_pages", return_value=b"signed"), \
-                patch.object(api, "save_file", return_value=Record(file_url="/private/files/signed.pdf")):
+                patch.object(api, "select_pdf_pages", return_value=b"signed"):
             fake.get_doc.return_value = Record(name="P")
             result = unwrap(api.generate_project_document)("P", "KSEB Agreement")
         render.assert_not_called()
-        self.assertEqual(result["file_url"], "/private/files/signed.pdf")
+        self.assertEqual(base64.b64decode(result["content"]), b"signed")
 
     def test_standalone_generation_checks_permissions_and_rejects_unknown_action(self):
         with patch.object(api, "frappe") as fake, patch.object(api, "resolve_context") as resolve:
@@ -193,9 +158,9 @@ class TestReportAPI(unittest.TestCase):
                 unwrap(api.generate_project_document)("P", "SLD")
             resolve.assert_not_called()
 
-    def test_report_snapshots_do_not_read_agreements(self):
-        context = {"sources": [{"category": category, "url": "/files/agreement.pdf"}
-                               for category in AGREEMENT_SECTIONS]}
+    def test_report_rendering_does_not_read_agreements(self):
+        context = {"warnings": [], "sources": [{"category": category, "url": "/files/agreement.pdf"}
+                                               for category in AGREEMENT_SECTIONS]}
         with patch.object(api, "read_file") as read:
-            api._snapshot(context)
+            api._render_sources("P", context)
         read.assert_not_called()

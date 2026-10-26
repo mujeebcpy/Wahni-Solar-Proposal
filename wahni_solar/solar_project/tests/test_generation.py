@@ -1,22 +1,23 @@
-"""Report worker outputs, omissions, failure handling and permissions."""
+"""Report worker outputs (cached, never attached), omissions, failures and permissions."""
 
 import json
 import unittest
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import frappe
 from pypdf import PdfWriter
 
 from wahni_solar.solar_project import api
-from wahni_solar.solar_project.constants import AGREEMENT_SECTIONS, PANEL_DOCUMENT, SECTIONS
+from wahni_solar.solar_project.constants import AGREEMENT_SECTIONS, PANEL_DOCUMENT, REPORT_OUTPUT_SECONDS, SECTIONS
+from wahni_solar.solar_project.project_documents import DOCUMENT_TYPES
 from wahni_solar.solar_project.documents import pdf_bytes, read_pdf
 from wahni_solar.solar_project.tests.helpers import Record, TEMPLATES
 
 
 class TestReportGeneration(unittest.TestCase):
     def setUp(self):
-        self.report = Record(name="REPORT-1", project="PROJECT-1", requested_by="report-user",
-                             status="Queued", input_snapshot="/private/files/inputs.zip")
+        self.report = Record(name="REPORT-1", project="PROJECT-1", requested_by="report-user", status="Running")
         self.context = {
             "sources": [{"category": category, "reason": "No document available."}
                         for category in (*SECTIONS, "SLD Template")],
@@ -35,22 +36,31 @@ class TestReportGeneration(unittest.TestCase):
         self.frappe.get_doc.side_effect = self.get_doc
         self.frappe.db.get_value.return_value = 1
         self.frappe.throw.side_effect = frappe.ValidationError
+        self.frappe.cache.set_value.side_effect = self.save_output
+        self.frappe.cache.exists.side_effect = lambda key: key in self.cached
+        self.cached = {}
         for mock in (
             patch.object(api, "frappe", self.frappe),
             patch.object(api, "read_file", side_effect=lambda url: (self.inputs[url], {})),
-            patch.object(api, "save_file", side_effect=self.save_file),
+            patch.object(api, "now_datetime", return_value=datetime(2026, 10, 26, 12)),
+            patch.object(api, "resolve_context", side_effect=lambda project: self.context),
+            patch.object(api, "get_document", side_effect=lambda project, category: Record(
+                doctype=DOCUMENT_TYPES[category], name=None, project=project)),
         ):
             mock.start()
             self.addCleanup(mock.stop)
 
-    def get_doc(self, doctype, name):
-        if doctype == "Project Report":
-            return self.report
+    def get_doc(self, doctype, name=None):
+        if isinstance(doctype, dict):
+            request = MagicMock()
+            request.insert.return_value = self.report
+            return request
         return self.records.get((doctype, name), Record(name=name))
 
-    def save_file(self, filename, content, doctype, name, **kwargs):
-        self.outputs[filename] = content
-        return Record(file_url=f"/private/files/{filename}")
+    def save_output(self, key, content, expires_in_sec=None):
+        self.assertEqual(expires_in_sec, REPORT_OUTPUT_SECONDS)
+        self.cached[key] = content
+        self.outputs[key.rsplit(":", 1)[-1]] = content
 
     def add_source(self, category, content, origin="Library", **metadata):
         source = next((row for row in self.context["sources"] if row["category"] == category), None)
@@ -61,51 +71,31 @@ class TestReportGeneration(unittest.TestCase):
         source.update(url=url, origin=origin, doctype="Project Report Document", name=category, **metadata)
         self.inputs[url] = content
 
-    def generate(self, legacy=False):
-        snapshot = api._snapshot(self.context)
-        if legacy:
-            from io import BytesIO
-            from zipfile import ZipFile
-            output = BytesIO()
-            with ZipFile(BytesIO(snapshot)) as old, ZipFile(output, "w") as new:
-                for name in old.namelist():
-                    content = old.read(name)
-                    if name == "context.json":
-                        context = json.loads(content)
-                        context.pop("snapshot_version", None)
-                        content = json.dumps(context).encode()
-                    new.writestr(name, content)
-            snapshot = output.getvalue()
-        self.inputs[self.report.input_snapshot] = snapshot
-        api.build_report(self.report.name)
-        return json.loads(self.report.result)
+    def generate(self):
+        api.generate_project_report("PROJECT-1")
+        return json.loads(self.report.get("result") or "{}")
 
-    def test_legacy_queued_report_generates_sld_and_excludes_agreements(self):
+    def test_report_generates_sld_and_excludes_agreements_without_attachments(self):
         for category, filename in {
-            "Check List": "Check_List_Fillable.pdf",
             "Project Completion Report": "Completion_Certificate_Fillable.pdf",
             "SLD Template": "SLD_Enphase.qet",
             "KSEB Agreement": "KSEB_Agreement_Fillable.pdf",
             "Customer Vendor Agreement": "Solar_Customer_Vendor_Agreement_Fillable.pdf",
         }.items():
-            self.add_source(category, (TEMPLATES / filename).read_bytes())
+            self.add_source(category, (TEMPLATES / filename).read_bytes(), origin="Project upload")
 
-        result = self.generate(legacy=True)
+        result = self.generate()
 
-        self.assertEqual(set(self.outputs), {"REPORT-1-SLD.qet", "REPORT-1-Project-Report.pdf"})
-        self.assertEqual(self.report.sld_qet, "/private/files/REPORT-1-SLD.qet")
+        self.assertEqual(set(self.outputs), {"qet", "pdf"})
+        self.assertEqual(result["outputs"], ["qet", "pdf"])
+        self.assertIn(b"Test Customer", self.outputs["qet"])
+        self.assertEqual(self.report.available_until, datetime(2026, 10, 26, 18))
         categories = {row["category"] for row in result["included"] + result["omitted"]}
         self.assertFalse(set(AGREEMENT_SECTIONS) & categories)
         self.assertFalse(set(AGREEMENT_SECTIONS) & result["missing_fields"].keys())
         self.assertFalse(any(category in warning for category in AGREEMENT_SECTIONS for warning in result["warnings"]))
-        reader = read_pdf(self.outputs["REPORT-1-Project-Report.pdf"])
-        self.assertEqual(len(reader.pages), 3)
-        fields = reader.get_fields()
-        self.assertEqual(fields["section_00.solar_plant_owner"]["/V"], "Test Customer")
-        self.assertEqual(fields["section_01.customer_name"]["/V"], "Test Customer")
-        for call in api.save_file.call_args_list:
-            self.assertEqual(call.args[2:], ("Project", "PROJECT-1"))
-            self.assertEqual(call.kwargs["is_private"], 1)
+        self.assertEqual(len(read_pdf(self.outputs["pdf"]).pages), 1)
+        self.frappe.get_attr.assert_not_called()
 
     def test_project_upload_is_preserved_in_report(self):
         original = (TEMPLATES / "Completion_Certificate_Fillable.pdf").read_bytes()
@@ -116,7 +106,7 @@ class TestReportGeneration(unittest.TestCase):
         self.assertEqual(self.report.status, "Completed with omissions")
         self.assertEqual([row["category"] for row in result["included"]], ["Project Completion Report"])
         self.assertFalse({"Cover Page", "End Page", "Sales Invoice"} & {row["category"] for row in result["omitted"]})
-        fields = read_pdf(self.outputs["REPORT-1-Project-Report.pdf"]).get_fields()
+        fields = read_pdf(self.outputs["pdf"]).get_fields()
         self.assertEqual(fields["section_00.customer_name"]["/V"], read_pdf(original).get_fields()["customer_name"]["/V"])
 
     def test_combined_panel_pdf_is_included_once(self):
@@ -128,7 +118,7 @@ class TestReportGeneration(unittest.TestCase):
         result = self.generate()
 
         self.assertEqual([row["category"] for row in result["included"]], [PANEL_DOCUMENT])
-        self.assertEqual(len(read_pdf(self.outputs["REPORT-1-Project-Report.pdf"]).pages), 2)
+        self.assertEqual(len(read_pdf(self.outputs["pdf"]).pages), 2)
         self.assertEqual(result["sources"][0]["panel_watt_peak"], 630)
 
     def test_complete_report_has_all_sections_in_order(self):
@@ -154,40 +144,37 @@ class TestReportGeneration(unittest.TestCase):
         self.assertEqual(self.report.status, "Failed")
         self.assertIn("No usable PDFs", self.report.message)
         self.assertEqual(self.outputs, {})
-        self.frappe.set_user.assert_called_with("worker-user")
 
-    def test_worker_rechecks_project_write_permission(self):
+    def test_generation_requires_project_write_permission(self):
         self.records[("Project", "PROJECT-1")] = Record(name="PROJECT-1", denied=True)
 
-        self.generate()
-
-        self.assertEqual(self.report.status, "Failed")
-        self.assertEqual(self.outputs, {})
-        self.frappe.set_user.assert_called_with("worker-user")
-
-    def test_finished_report_is_not_generated_again(self):
-        self.report.status = "Completed"
-
-        api.build_report(self.report.name)
+        with self.assertRaises(frappe.PermissionError):
+            self.generate()
 
         api.read_file.assert_not_called()
-        api.save_file.assert_not_called()
+        self.frappe.cache.set_value.assert_not_called()
 
-    def test_new_snapshot_never_fills_forms_and_freezes_native_pdf(self):
+    def test_native_documents_print_without_creating_records(self):
         writer = PdfWriter()
         writer.add_blank_page(width=321, height=456)
         original = pdf_bytes(writer)
         source = next(row for row in self.context["sources"] if row["category"] == "Check List")
-        source.update(document_type="Solar Installation Checklist", doctype="Solar Installation Checklist",
-                      name="CHECK-1", origin="Print Format")
-        resolved = {"values": {"consumer_number": "old"}, "missing_fields": [], "warnings": [], "sources": []}
-        with patch.object(api, "render_document", return_value=(original, resolved)) as render, \
-                patch.object(api, "fill_form") as fill:
-            self.inputs[self.report.input_snapshot] = api._snapshot(self.context)
-            self.context["grid"]["consumer_no"] = "new"
-            api.build_report(self.report.name)
-        render.assert_called_once()
-        fill.assert_not_called()
-        pdf = read_pdf(self.outputs["REPORT-1-Project-Report.pdf"])
+        source.update(document_type="Solar Installation Checklist", origin="Print Format")
+        resolved = {"values": {"consumer_number": "new"}, "missing_fields": ["tariff"], "warnings": [], "sources": []}
+        with patch.object(api, "render_document", return_value=(original, resolved)) as render:
+            result = self.generate()
+        self.assertEqual(render.call_args.args[0].doctype, "Solar Installation Checklist")
+        api.get_document.assert_called_once_with("PROJECT-1", "Check List")
+        self.frappe.new_doc.assert_not_called()
+        self.assertEqual(result["missing_fields"]["Check List"], ["tariff"])
+        pdf = read_pdf(self.outputs["pdf"])
         self.assertEqual(float(pdf.pages[0].mediabox.width), 321)
         self.assertFalse(pdf.get_fields())
+
+    def test_failed_report_discards_cached_outputs(self):
+        self.add_source("SLD Template", (TEMPLATES / "SLD_Enphase.qet").read_bytes())
+
+        self.generate()
+
+        self.assertEqual(self.report.status, "Failed")
+        self.frappe.cache.delete_value.assert_any_call("wahni_solar:project_report:REPORT-1:qet")
