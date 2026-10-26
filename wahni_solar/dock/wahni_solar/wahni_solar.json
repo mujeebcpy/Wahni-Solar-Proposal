@@ -1,0 +1,39 @@
+{
+ "app": "wahni_solar",
+ "creation": "2026-10-23 12:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Dock",
+ "idx": 0,
+ "items": [
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "file-text",
+   "link_to": "Wahni Solar Proposal",
+   "link_type": "Sidebar",
+   "title": "Solar Proposal"
+  },
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "folder-kanban",
+   "link_to": "Solar Project",
+   "link_type": "Sidebar",
+   "title": "Solar Project"
+  },
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "sun",
+   "link_to": "Solar Monitor",
+   "link_type": "Sidebar",
+   "title": "Solar Monitor"
+  }
+ ],
+ "modified": "2026-10-23 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "wahni_solar",
+ "owner": "Administrator",
+ "standard": 1,
+ "user": ""
+}

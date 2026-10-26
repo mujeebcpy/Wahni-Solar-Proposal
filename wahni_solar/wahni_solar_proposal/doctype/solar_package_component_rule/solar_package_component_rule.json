@@ -1,0 +1,52 @@
+{
+ "doctype": "DocType",
+ "name": "Solar Package Component Rule",
+ "module": "Wahni Solar Proposal",
+ "engine": "InnoDB",
+ "field_order": [
+  "template_alias",
+  "component_template",
+  "include_when",
+  "enabled"
+ ],
+ "fields": [
+  {
+   "fieldname": "template_alias",
+   "fieldtype": "Data",
+   "label": "Template Alias",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Stable unique identifier within the package, for example downrun or common. Used by qty(\"downrun.clamp\")."
+  },
+  {
+   "fieldname": "component_template",
+   "fieldtype": "Link",
+   "label": "Component Template",
+   "options": "Solar Component Template",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "include_when",
+   "fieldtype": "Small Text",
+   "label": "Include When",
+   "in_list_view": 1,
+   "description": "Blank means always. Boolean expression such as include_battery or phase == \"Three Phase\"."
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1",
+   "in_list_view": 1
+  }
+ ],
+ "permissions": [],
+ "actions": [],
+ "links": [],
+ "states": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "istable": 1,
+ "editable_grid": 1
+}

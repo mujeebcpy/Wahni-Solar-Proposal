@@ -37,28 +37,21 @@ class TestEquipment(unittest.TestCase):
             with self.assertRaises(frappe.PermissionError):
                 unwrap(equipment.microinverter_brand_query)("Brand", "", "name", 0, 20, {})
 
-    def test_new_or_changed_package_brand_requires_enabled_microinverter(self):
-        for previous in (None, frappe._dict(brand="Vsole")):
-            for exists in (True, False):
-                doc = MagicMock(brand="Enphase")
-                doc.get_doc_before_save.return_value = previous
-                fake = MagicMock()
-                fake.db.exists.return_value = exists
-                fake.throw.side_effect = ValueError
-                with patch.object(solar_package, "frappe", fake):
-                    if exists:
-                        solar_package.SolarPackage.validate(doc)
-                    else:
-                        with self.assertRaises(ValueError):
-                            solar_package.SolarPackage.validate(doc)
-                fake.db.exists.assert_called_once_with(
-                    "Item", {"item_group": "Microinverters", "disabled": 0, "brand": "Enphase"}
-                )
-
-    def test_existing_package_brand_remains_editable(self):
-        doc = MagicMock(brand="Enphase")
-        doc.get_doc_before_save.return_value = frappe._dict(brand="Enphase")
+    def test_package_brand_allows_hybrid_equipment_without_microinverter_lookup(self):
+        doc = frappe._dict(
+            package_title="Compatible hybrid", brand="Deye", system_type="Hybrid",
+            component_rules=[], input_definitions=[], inverter_count_formula="1",
+        )
         with patch.object(solar_package, "frappe") as fake:
             solar_package.SolarPackage.validate(doc)
         fake.db.exists.assert_not_called()
         fake.throw.assert_not_called()
+
+    def test_existing_package_name_is_retained_when_title_is_added(self):
+        doc = frappe._dict(
+            name="Existing package name", package_title=None,
+            component_rules=[], input_definitions=[], inverter_count_formula=None,
+        )
+        solar_package.SolarPackage.validate(doc)
+        self.assertEqual(doc.package_title, "Existing package name")
+        self.assertEqual(doc.name, "Existing package name")

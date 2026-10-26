@@ -1,0 +1,94 @@
+{
+ "doctype": "DocType",
+ "name": "Solar Component Template Item",
+ "module": "Wahni Solar Proposal",
+ "engine": "InnoDB",
+ "field_order": [
+  "rule_key",
+  "component_label",
+  "item_code",
+  "uom",
+  "include_when",
+  "quantity_formula",
+  "description",
+  "enabled",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "rule_key",
+   "fieldtype": "Data",
+   "label": "Rule Key",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Stable unique identifier within this template, for example clamp. Do not use a display label or visual row number as a reference."
+  },
+  {
+   "fieldname": "component_label",
+   "fieldtype": "Data",
+   "label": "Generic Component Label",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Actual ERPNext Item",
+   "options": "Item",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "label": "Uom",
+   "options": "UOM",
+   "reqd": 1,
+   "in_list_view": 1,
+   "fetch_from": "item_code.stock_uom",
+   "fetch_if_empty": 1
+  },
+  {
+   "fieldname": "include_when",
+   "fieldtype": "Small Text",
+   "label": "Include When",
+   "description": "Blank means always. Boolean expression such as phase == \"Three Phase\"."
+  },
+  {
+   "fieldname": "quantity_formula",
+   "fieldtype": "Small Text",
+   "label": "Quantity Formula",
+   "default": "1",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Number or equation in this row UOM: 8; db_loop_length; ceil(inverter_count / 7); qty(\"clamp\") * 2."
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Specification",
+   "fetch_from": "item_code.description",
+   "fetch_if_empty": 1
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "permissions": [],
+ "actions": [],
+ "links": [],
+ "states": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "istable": 1,
+ "editable_grid": 1
+}

@@ -7,13 +7,40 @@
  "engine": "InnoDB",
  "field_order": [
   "proposal_bom_section",
+  "component_group",
   "item_code",
   "quantity",
   "uom",
   "rate",
-  "amount"
+  "amount",
+  "component_label",
+  "item_name",
+  "description",
+  "generated_quantity",
+  "has_quantity_override",
+  "override_reason",
+  "calculation_note",
+  "valuation_status",
+  "stock_uom",
+  "conversion_factor",
+  "valuation_warehouse",
+  "source_template",
+  "template_alias",
+  "rule_key"
  ],
  "fields": [
+  {
+   "fieldname": "proposal_bom_section",
+   "fieldtype": "Section Break",
+   "label": "Proposal BOM"
+  },
+  {
+   "fieldname": "component_group",
+   "fieldtype": "Data",
+   "label": "Group",
+   "read_only": 1,
+   "in_list_view": 1
+  },
   {
    "fieldname": "item_code",
    "fieldtype": "Link",
@@ -35,25 +62,112 @@
    "options": "UOM"
   },
   {
-   "fieldname": "proposal_bom_section",
-   "fieldtype": "Section Break",
-   "label": "Proposal BOM"
-  },
-  {
    "fieldname": "rate",
    "fieldtype": "Currency",
-   "label": "Rate"
+   "label": "Valuation Rate",
+   "read_only": 1,
+   "in_list_view": 1
   },
   {
    "fieldname": "amount",
    "fieldtype": "Currency",
-   "label": "Amount"
+   "label": "Amount",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "component_label",
+   "fieldtype": "Data",
+   "label": "Component",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Specification",
+   "read_only": 1
+  },
+  {
+   "fieldname": "generated_quantity",
+   "fieldtype": "Float",
+   "label": "Generated Quantity",
+   "read_only": 1
+  },
+  {
+   "fieldname": "has_quantity_override",
+   "fieldtype": "Check",
+   "label": "Quantity Override",
+   "read_only": 1
+  },
+  {
+   "fieldname": "override_reason",
+   "fieldtype": "Small Text",
+   "label": "Override Reason",
+   "mandatory_depends_on": "eval:doc.has_quantity_override"
+  },
+  {
+   "fieldname": "calculation_note",
+   "fieldtype": "Small Text",
+   "label": "Calculation Note",
+   "read_only": 1
+  },
+  {
+   "fieldname": "valuation_status",
+   "fieldtype": "Select",
+   "label": "Valuation Status",
+   "options": "\nValued\nMissing Valuation\nMissing Conversion\nLegacy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stock_uom",
+   "fieldtype": "Link",
+   "label": "Stock UOM",
+   "options": "UOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "conversion_factor",
+   "fieldtype": "Float",
+   "label": "Stock Units per UOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "valuation_warehouse",
+   "fieldtype": "Link",
+   "label": "Valuation Warehouse",
+   "options": "Warehouse",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_template",
+   "fieldtype": "Link",
+   "label": "Source Template",
+   "options": "Solar Component Template",
+   "read_only": 1
+  },
+  {
+   "fieldname": "template_alias",
+   "fieldtype": "Data",
+   "label": "Template Alias",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rule_key",
+   "fieldtype": "Data",
+   "label": "Rule Key",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-01 21:15:43.006143",
+ "modified": "2026-10-23 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Proposal BOM Item",
@@ -61,5 +175,6 @@
  "permissions": [],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "track_changes": 0
 }

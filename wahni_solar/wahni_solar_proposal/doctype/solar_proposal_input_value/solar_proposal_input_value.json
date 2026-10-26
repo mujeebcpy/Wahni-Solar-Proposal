@@ -1,0 +1,90 @@
+{
+ "doctype": "DocType",
+ "name": "Solar Proposal Input Value",
+ "module": "Wahni Solar Proposal",
+ "engine": "InnoDB",
+ "field_order": [
+  "variable_key",
+  "label",
+  "input_type",
+  "uom",
+  "select_options",
+  "show_when",
+  "required",
+  "is_visible",
+  "value"
+ ],
+ "fields": [
+  {
+   "fieldname": "variable_key",
+   "fieldtype": "Data",
+   "label": "Variable Key",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "label": "Label",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "input_type",
+   "fieldtype": "Select",
+   "label": "Input Type",
+   "options": "Int\nFloat\nCheck\nSelect\nData",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "label": "Unit",
+   "options": "UOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "select_options",
+   "fieldtype": "Small Text",
+   "label": "Choices",
+   "read_only": 1
+  },
+  {
+   "fieldname": "show_when",
+   "fieldtype": "Small Text",
+   "label": "Show When",
+   "read_only": 1
+  },
+  {
+   "fieldname": "required",
+   "fieldtype": "Check",
+   "label": "Required",
+   "read_only": 1
+  },
+  {
+   "fieldname": "is_visible",
+   "fieldtype": "Check",
+   "label": "Visible",
+   "read_only": 1,
+   "hidden": 1,
+   "default": "1"
+  },
+  {
+   "fieldname": "value",
+   "fieldtype": "Data",
+   "label": "Value",
+   "in_list_view": 1,
+   "description": "Stored literal. The proposal input editor displays the saved input type and the server validates it."
+  }
+ ],
+ "permissions": [],
+ "actions": [],
+ "links": [],
+ "states": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "istable": 1,
+ "editable_grid": 1
+}

@@ -1,122 +1,157 @@
 {
- "actions": [],
- "allow_rename": 1,
- "autoname": "format:{brand} {system_type} Inverter System {connection_type}",
- "creation": "2026-07-28 19:00:03.747069",
  "doctype": "DocType",
+ "name": "Solar Package",
+ "module": "Wahni Solar Proposal",
  "engine": "InnoDB",
  "field_order": [
   "basic_information",
+  "package_title",
   "brand",
-  "inverter_bom_item",
-  "basic_bom_item",
-  "column_break_sxbi",
   "system_type",
   "grid_type",
-  "connection_type"
+  "disabled",
+  "is_demo",
+  "calculation_section",
+  "inverter_count_formula",
+  "allow_battery",
+  "input_definitions",
+  "component_rules"
  ],
  "fields": [
   {
    "fieldname": "basic_information",
    "fieldtype": "Section Break",
-   "label": "Basic Information"
+   "label": "System Profile"
   },
   {
-   "description": "Choose a brand assigned to an enabled Item in the Microinverters item group.",
+   "fieldname": "package_title",
+   "fieldtype": "Data",
+   "label": "Package Name",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
    "fieldname": "brand",
    "fieldtype": "Link",
-   "in_list_view": 1,
    "label": "Brand",
    "options": "Brand",
-   "reqd": 1
+   "description": "Optional brand metadata for the system and existing proposal content."
   },
   {
-   "default": "Micro",
    "fieldname": "system_type",
    "fieldtype": "Select",
    "label": "System Type",
    "options": "Micro\nString\nHybrid",
+   "default": "Micro",
    "reqd": 1
   },
   {
-   "default": "On-Grid",
    "fieldname": "grid_type",
    "fieldtype": "Select",
    "label": "Grid Type",
-   "options": "On-Grid\nOff-Grid\nHybrid"
+   "options": "On-Grid\nOff-Grid\nHybrid",
+   "default": "On-Grid"
   },
   {
-   "fieldname": "column_break_sxbi",
-   "fieldtype": "Column Break"
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Disabled",
+   "default": "0"
   },
   {
-   "fieldname": "inverter_bom_item",
-   "fieldtype": "Link",
-   "label": "Inverter Specific BOM Item",
-   "options": "Item",
-   "reqd": 1
+   "fieldname": "is_demo",
+   "fieldtype": "Check",
+   "label": "Is Demo",
+   "default": "0",
+   "hidden": 1,
+   "read_only": 1
   },
   {
-   "fieldname": "basic_bom_item",
-   "fieldtype": "Link",
-   "label": "Basic Material BOM Item",
-   "options": "Item",
-   "reqd": 1
+   "fieldname": "calculation_section",
+   "fieldtype": "Section Break",
+   "label": "Calculation Rules"
   },
   {
-   "default": "Single Phase",
-   "fieldname": "connection_type",
-   "fieldtype": "Select",
-   "label": "Connection Type",
-   "options": "Single Phase\nThree Phase",
-   "reqd": 1
+   "fieldname": "inverter_count_formula",
+   "fieldtype": "Small Text",
+   "label": "Inverter Count Formula",
+   "default": "panel_count",
+   "reqd": 1,
+   "description": "Numeric expression, for example panel_count or ceil(panel_count / 2). Component qty() references are calculated later and cannot be used here."
+  },
+  {
+   "fieldname": "allow_battery",
+   "fieldtype": "Check",
+   "label": "Allow Battery",
+   "default": "0",
+   "description": "Enable only when this package supports an optional battery."
+  },
+  {
+   "fieldname": "input_definitions",
+   "fieldtype": "Table",
+   "label": "Additional Input Definitions",
+   "options": "Solar Package Input",
+   "description": "Define site variables and typed literal defaults. Keys must be unique identifiers and must not replace core variables or helpers."
+  },
+  {
+   "fieldname": "component_rules",
+   "fieldtype": "Table",
+   "label": "Component Templates",
+   "options": "Solar Package Component Rule",
+   "description": "Attach reusable templates with stable aliases. Blank Include When means always. Templates and material rows can be empty while being configured."
   }
  ],
- "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-09-15 13:03:21.243888",
- "modified_by": "Administrator",
- "module": "Wahni Solar Proposal",
- "name": "Solar Package",
- "naming_rule": "Expression (old style)",
- "owner": "Administrator",
  "permissions": [
   {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
    "role": "System Manager",
-   "share": 1,
-   "write": 1
-  },
-  {
    "create": 1,
-   "delete": 1,
+   "read": 1,
+   "write": 1,
+   "select": 1,
+   "print": 1,
    "email": 1,
    "export": 1,
-   "print": 1,
-   "read": 1,
    "report": 1,
-   "role": "Sales Manager",
    "share": 1,
-   "write": 1
+   "delete": 1
   },
   {
+   "role": "Sales Manager",
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "select": 1,
+   "print": 1,
    "email": 1,
    "export": 1,
-   "print": 1,
-   "read": 1,
    "report": 1,
+   "share": 1,
+   "delete": 1
+  },
+  {
    "role": "Sales User",
+   "create": 1,
+   "read": 1,
+   "write": 1,
    "select": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
    "share": 1
   }
  ],
+ "actions": [],
+ "links": [],
+ "states": [],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "autoname": "field:package_title",
+ "naming_rule": "By fieldname",
+ "title_field": "package_title",
+ "search_fields": "package_title,brand,system_type",
+ "track_changes": 1,
+ "allow_rename": 1,
+ "index_web_pages_for_search": 1
 }

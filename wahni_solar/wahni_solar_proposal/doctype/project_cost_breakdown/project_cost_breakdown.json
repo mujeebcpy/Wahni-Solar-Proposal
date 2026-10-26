@@ -9,6 +9,7 @@
   "cost_component",
   "rate",
   "quantity",
+  "calculated_quantity",
   "amount",
   "included",
   "calculation_note"
@@ -37,6 +38,13 @@
    "label": "Quantity"
   },
   {
+   "fieldname": "calculated_quantity",
+   "fieldtype": "Float",
+   "label": "Calculated Quantity",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
    "fieldname": "amount",
    "fieldtype": "Float",
    "in_list_view": 1,
@@ -60,7 +68,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-04 14:47:57.151166",
+ "modified": "2026-10-23 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Project Cost Breakdown",

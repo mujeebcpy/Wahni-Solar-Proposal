@@ -1,0 +1,124 @@
+{
+ "doctype": "DocType",
+ "name": "Solar Component Template",
+ "module": "Wahni Solar Proposal",
+ "engine": "InnoDB",
+ "field_order": [
+  "template_name",
+  "group_name",
+  "disabled",
+  "is_demo",
+  "items",
+  "validation_condition",
+  "validation_message",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "template_name",
+   "fieldtype": "Data",
+   "label": "Template Name",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "group_name",
+   "fieldtype": "Data",
+   "label": "Display Group",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Editable display grouping, for example Downrun or Common Protection. No fixed group catalogue is required."
+  },
+  {
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Disabled",
+   "default": "0"
+  },
+  {
+   "fieldname": "is_demo",
+   "fieldtype": "Check",
+   "label": "Is Demo",
+   "default": "0",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Material Rules",
+   "options": "Solar Component Template Item",
+   "description": "Select the actual Item once per rule. Stable keys support qty(\"clamp\") references. Empty templates are allowed."
+  },
+  {
+   "fieldname": "validation_condition",
+   "fieldtype": "Small Text",
+   "label": "Validation Condition",
+   "description": "Optional boolean check for the supported input range. A false result stops generation with the message below."
+  },
+  {
+   "fieldname": "validation_message",
+   "fieldtype": "Small Text",
+   "label": "Validation Message",
+   "description": "Explain how to correct unsupported inputs."
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "select": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales Manager",
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "select": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales User",
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "select": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1
+  }
+ ],
+ "actions": [],
+ "links": [],
+ "states": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "autoname": "field:template_name",
+ "naming_rule": "By fieldname",
+ "title_field": "template_name",
+ "search_fields": "template_name,group_name",
+ "track_changes": 1,
+ "allow_rename": 1,
+ "index_web_pages_for_search": 1
+}

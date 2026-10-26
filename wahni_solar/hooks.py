@@ -10,16 +10,19 @@ app_license = "mit"
 
 required_apps = ["erpnext", "wahni_kseb"]
 
+app_home = "/desk/wahni-solar-proposal"
+app_logo_url = "/assets/wahni_solar/images/wahni-solar-logo.svg"
+
 # Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "wahni_solar",
-# 		"logo": "/assets/wahni_solar/logo.png",
-# 		"title": "Wahni Solar Proposal",
-# 		"route": "/wahni_solar",
-# 		"has_permission": "wahni_solar.api.permission.has_app_permission"
-# 	}
-# ]
+# The logo is also the mark on the dock rail and the sidebar header
+add_to_apps_screen = [
+    {
+        "name": app_name,
+        "logo": app_logo_url,
+        "title": "Wahni Solar",
+        "route": app_home,
+    }
+]
 
 # Includes in <head>
 # ------------------
@@ -53,6 +56,11 @@ doctype_js = {
 
 after_install = "wahni_solar.solar_project.setup.after_migrate"
 after_migrate = "wahni_solar.solar_project.setup.after_migrate"
+never_skip_patches = [
+    "wahni_solar.patches.archive_legacy_solar_configuration",
+    "wahni_solar.patches.retire_legacy_solar_configuration",
+    "wahni_solar.patches.delete_unused_legacy_solar_configuration",
+]
 
 fixtures = [{"dt": "Role", "filters": [["name", "in", ["Solar Monitor Viewer"]]]}]
 

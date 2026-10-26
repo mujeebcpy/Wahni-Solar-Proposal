@@ -10,31 +10,31 @@ frappe.ui.form.on("Sales Order", {
             return;
         }
 
+        const project_name = frm.doc.project;
         frappe.call({
-            method: "frappe.client.get",
+            method: "wahni_solar.solar_project.sales_order.get_project_materials",
             args: {
-                doctype: "Project",
-                name: frm.doc.project
+                source_name: project_name
             },
             callback: function(r) {
 
-                if (!r.message) {
+                if (!r.message || frm.doc.project !== project_name || frm.doc.docstatus !== 0) {
                     return;
                 }
 
-                const bom_items = r.message.custom_table_project_bom || [];
+                const bom_items = r.message.items || [];
 
                 if (!bom_items.length) {
                     return;
                 }
 
-                load_items_from_bom(frm, bom_items);
+                load_items_from_bom(frm, bom_items, r.message.use_selling_prices);
             }
         });
     }
 });
 
-async function load_items_from_bom(frm, bom_items) {
+async function load_items_from_bom(frm, bom_items, use_selling_prices) {
 
     frm.clear_table("items");
     frm.refresh_field("items");
@@ -46,8 +46,8 @@ async function load_items_from_bom(frm, bom_items) {
         const row = frm.add_child("items");
 
         try {
-            // item_code trigger fetches item defaults (rate, uom, description)
-            // so it must resolve before we override with the BOM's own values
+            // Standard Item / UOM / quantity triggers fetch selling prices.
+            // Legacy material lists explicitly retain their saved rates.
             await frappe.model.set_value(row.doctype, row.name, "item_code", bom_item.item_code);
 
             if (bom_item.uom) {
@@ -55,7 +55,9 @@ async function load_items_from_bom(frm, bom_items) {
             }
 
             await frappe.model.set_value(row.doctype, row.name, "qty", bom_item.quantity);
-            await frappe.model.set_value(row.doctype, row.name, "rate", bom_item.rate);
+            if (!use_selling_prices) {
+                await frappe.model.set_value(row.doctype, row.name, "rate", bom_item.rate);
+            }
         } catch (e) {
             // one bad item (disabled, template, missing UOM conversion...) must not stop the rest
             console.error(`Could not load ${bom_item.item_code} from Project`, e);

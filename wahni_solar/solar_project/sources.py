@@ -140,7 +140,8 @@ def resolve_context(project_name, categories=None, include_sources=True):
             frappe.throw("The Solar Proposal Lead does not match the Project customer's Lead.")
         if proposal.get("proposal_to") == "Customer" and (not customer or proposal.party != customer.name):
             frappe.throw("The Solar Proposal Customer does not match the Project customer.")
-    package = linked("Solar Package", proposal.package_name if proposal else None)
+    snapshot_package = bool(proposal and proposal.get("calculation_version") == "Templates v1")
+    package = None if snapshot_package else linked("Solar Package", proposal.package_name if proposal else None)
     panel_item = linked("Item", project.get("custom_panel_item"))
     if panel_item and panel_item.item_group != "Panel":
         frappe.throw("Select a Panel Item from the Panel item group.")
@@ -187,6 +188,19 @@ def resolve_context(project_name, categories=None, include_sources=True):
     def fields(doc, names):
         return {key: doc.get(key) for key in ("name", *names.split())} if doc else {}
 
+    package_fields = "brand grid_type system_type connection_type"
+    if snapshot_package:
+        package_context = {"name": proposal.package_name, "system_name": proposal.get("system_name")}
+        package_context.update({key: proposal.get(key) for key in package_fields.split()})
+    else:
+        package_context = fields(package, package_fields)
+        # Upgrade preserves metadata on legacy proposals before obsolete Package
+        # columns are removed. Retain live legacy values when they still exist.
+        if proposal:
+            for key in package_fields.split():
+                if not package_context.get(key) and proposal.get(key):
+                    package_context[key] = proposal.get(key)
+
     context = {
         "project": project.name,
         "panel_item": panel_item.name if panel_item else None,
@@ -197,7 +211,7 @@ def resolve_context(project_name, categories=None, include_sources=True):
         "grid": fields(grid, "consumer_name consumer_no customer_address registered_mobile division subdivision section tariff connected_load proposed_solar_capacity phase"),
         "lead": fields(lead, "email_id mobile_no phone"),
         "proposal": fields(proposal, "capacity_kw panel_count panel_brand project_cost"),
-        "package": fields(package, "brand grid_type system_type connection_type"),
+        "package": package_context,
         "bank": fields(bank, "account_name bank bank_account_no branch_code"),
         "permissions": refs,
         "warnings": warnings,

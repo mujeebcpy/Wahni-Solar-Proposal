@@ -9,6 +9,8 @@ from erpnext.selling.doctype.quotation.quotation import (
     create_customer_from_lead,
     create_customer_from_prospect,
 )
+from wahni_solar.wahni_solar_proposal import configuration
+from wahni_solar.wahni_solar_proposal.rules import RuleError
 
 PARTY_TYPES = ("Customer", "Lead", "Prospect")
 
@@ -18,6 +20,52 @@ class SolarProposal(Document):
 		if self.proposal_to not in PARTY_TYPES:
 			frappe.throw(frappe._("Proposal To must be one of {0}").format(", ".join(PARTY_TYPES)))
 		self.set_customer_name()
+		previous = self.get_doc_before_save()
+		if self.is_demo and (not previous or not previous.is_demo):
+			frappe.only_for("System Manager")
+		# The persisted version is authoritative; a request cannot bypass calculation
+		# by labelling a new or current proposal as a legacy document.
+		self.calculation_version = (
+			configuration.VERSION if self.is_new() or self.flags.regenerate_configuration
+			else (previous.calculation_version or "Legacy")
+		)
+		if self.calculation_version == "Legacy" and not self.flags.regenerate_configuration:
+			return
+		try:
+			result = configuration.calculate(self, previous=previous,
+				regenerate=bool(self.flags.regenerate_configuration),
+				reprice=bool(self.flags.reprice_materials))
+			configuration.apply_result(self, result)
+		except RuleError as error:
+			frappe.throw(str(error), title="Configuration rule error")
+
+	@frappe.whitelist()
+	def regenerate_materials(self):
+		self.check_permission("write" if not self.is_new() else "create")
+		self.flags.regenerate_configuration = True
+		self.calculation_version = configuration.VERSION
+		self.save()
+		return self.as_dict()
+
+	@frappe.whitelist()
+	def refresh_valuation(self):
+		self.check_permission("write" if not self.is_new() else "create")
+		if self.calculation_version != configuration.VERSION:
+			frappe.throw("Regenerate this legacy proposal before refreshing valuation.")
+		self.flags.reprice_materials = True
+		self.save()
+		return self.as_dict()
+
+	def before_print(self, print_settings=None):
+		previous = frappe.get_doc(self.doctype, self.name) if not self.is_new() else None
+		version = (previous.calculation_version or "Legacy") if previous else configuration.VERSION
+		if version == configuration.VERSION:
+			try:
+				configuration.apply_result(self, configuration.calculate(self, previous=previous))
+			except RuleError as error:
+				frappe.throw(str(error), title="Configuration rule error")
+			if self.costing_status != "Complete":
+				frappe.throw("Resolve missing valuations or UOM conversions before printing this proposal.")
 
 	def set_customer_name(self):
 		if not self.party:
@@ -90,6 +138,9 @@ def get_customer(proposal_to, party):
 
 @frappe.whitelist()
 def make_project(source_name, target_doc=None):
+    proposal = frappe.get_doc("Solar Proposal", source_name)
+    proposal.check_permission("read")
+    proposal.before_print()
     proposal_to, party = frappe.db.get_value(
         "Solar Proposal", source_name, ["proposal_to", "party"]
     ) or (None, None)

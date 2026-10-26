@@ -1,0 +1,97 @@
+{
+ "doctype": "Workspace",
+ "name": "Wahni Solar Proposal",
+ "label": "Wahni Solar Proposal",
+ "title": "Wahni Solar Proposal",
+ "module": "Wahni Solar Proposal",
+ "app": "wahni_solar",
+ "icon": "file-text",
+ "type": "Workspace",
+ "public": 1,
+ "is_hidden": 0,
+ "sequence_id": 25,
+ "content": "[{\"id\": \"proposal-header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Solar Proposal</span>\", \"col\": 12}}, {\"id\": \"proposal-shortcut-0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Proposal\", \"col\": 3}}, {\"id\": \"proposal-shortcut-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Solar Package\", \"col\": 3}}, {\"id\": \"proposal-shortcut-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Component Template\", \"col\": 3}}, {\"id\": \"proposal-shortcut-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Settings\", \"col\": 3}}, {\"id\": \"proposal-spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"proposal-card-0\", \"type\": \"card\", \"data\": {\"card_name\": \"Proposals\", \"col\": 4}}, {\"id\": \"proposal-card-1\", \"type\": \"card\", \"data\": {\"card_name\": \"Configuration\", \"col\": 4}}, {\"id\": \"proposal-card-2\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}]",
+ "shortcuts": [
+  {
+   "label": "Solar Proposal",
+   "link_to": "Solar Proposal",
+   "type": "DocType",
+   "doc_view": "List",
+   "color": "Orange"
+  },
+  {
+   "label": "Solar Package",
+   "link_to": "Solar Package",
+   "type": "DocType",
+   "doc_view": "List"
+  },
+  {
+   "label": "Component Template",
+   "link_to": "Solar Component Template",
+   "type": "DocType",
+   "doc_view": "List"
+  },
+  {
+   "label": "Settings",
+   "link_to": "Wahni Default Settings",
+   "type": "DocType",
+   "doc_view": ""
+  }
+ ],
+ "links": [
+  {
+   "type": "Card Break",
+   "label": "Proposals",
+   "link_count": 2
+  },
+  {
+   "type": "Link",
+   "label": "Solar Proposal",
+   "link_type": "DocType",
+   "link_to": "Solar Proposal",
+   "onboard": 1
+  },
+  {
+   "type": "Link",
+   "label": "Proposal Content",
+   "link_type": "DocType",
+   "link_to": "Solar Proposal Content"
+  },
+  {
+   "type": "Card Break",
+   "label": "Configuration",
+   "link_count": 2
+  },
+  {
+   "type": "Link",
+   "label": "Solar Package",
+   "link_type": "DocType",
+   "link_to": "Solar Package",
+   "onboard": 1
+  },
+  {
+   "type": "Link",
+   "label": "Component Template",
+   "link_type": "DocType",
+   "link_to": "Solar Component Template",
+   "onboard": 1
+  },
+  {
+   "type": "Card Break",
+   "label": "Settings",
+   "link_count": 1
+  },
+  {
+   "type": "Link",
+   "label": "Wahni Default Settings",
+   "link_type": "DocType",
+   "link_to": "Wahni Default Settings"
+  }
+ ],
+ "roles": [],
+ "creation": "2026-10-23 12:00:00.000000",
+ "modified": "2026-10-23 12:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "standard": 1
+}

@@ -205,6 +205,40 @@ class TestReportSources(unittest.TestCase):
             with self.assertRaises(ValueError):
                 source_module.resolve_context("P")
 
+    def test_template_proposal_context_uses_saved_metadata_without_loading_package(self):
+        records = {
+            ("Project", "P"): Record(name="P", customer="C", custom_solar_proposal="S"),
+            ("Customer", "C"): Record(name="C"),
+            ("Solar Proposal", "S"): Record(
+                name="S", proposal_to="Customer", party="C", package_name="CHANGED-PACKAGE",
+                calculation_version="Templates v1", system_name="Saved compatible hybrid",
+                brand="Saved Brand", system_type="Hybrid", grid_type="Off-Grid",
+                connection_type="Three Phase",
+            ),
+        }
+        with patch.object(source_module.frappe, "get_doc", side_effect=lambda dt, name: records[(dt, name)]), \
+                patch.object(source_module.frappe, "get_list", return_value=[]):
+            context = source_module.resolve_context("P", categories=(), include_sources=False)
+        self.assertEqual(context["package"], {
+            "name": "CHANGED-PACKAGE", "system_name": "Saved compatible hybrid",
+            "brand": "Saved Brand", "system_type": "Hybrid", "grid_type": "Off-Grid",
+            "connection_type": "Three Phase",
+        })
+        self.assertFalse(any(row["doctype"] == "Solar Package" for row in context["permissions"]))
+
+    def test_legacy_context_uses_archived_phase_when_package_column_was_removed(self):
+        records = {
+            ("Project", "P"): Record(name="P", customer="C", custom_solar_proposal="S"),
+            ("Customer", "C"): Record(name="C"),
+            ("Solar Proposal", "S"): Record(name="S", package_name="PK", connection_type="Single Phase"),
+            ("Solar Package", "PK"): Record(name="PK", brand="Enphase"),
+        }
+        with patch.object(source_module.frappe, "get_doc", side_effect=lambda dt, name: records[(dt, name)]), \
+                patch.object(source_module.frappe, "get_list", return_value=[]):
+            context = source_module.resolve_context("P", categories=(), include_sources=False)
+        self.assertEqual(context["package"]["brand"], "Enphase")
+        self.assertEqual(context["package"]["connection_type"], "Single Phase")
+
     def test_agreement_resolution_uses_bom_items_without_invoice_bank_or_annexure_work(self):
         records = {
             ("Project", "P"): Record(name="P", customer="C", custom_solar_proposal="S",

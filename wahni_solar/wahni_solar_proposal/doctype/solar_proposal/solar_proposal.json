@@ -14,12 +14,27 @@
   "proposal_date",
   "package_name",
   "capacity_kw",
+  "connection_type",
+  "down_run_cabling",
   "system_details_section",
+  "panel_capacity_w",
+  "suggested_panel_count",
   "panel_count",
+  "inverter_count",
+  "actual_capacity_kw",
   "panel_brand",
   "include_structure",
+  "allow_battery",
+  "include_battery",
+  "input_editor",
+  "input_values",
+  "company",
+  "valuation_warehouse",
+  "currency",
   "system_components_section",
   "table_proposal_bom",
+  "costing_status",
+  "calculation_warnings",
   "pricing",
   "cost_breakdown",
   "material_cost",
@@ -29,125 +44,22 @@
   "subsidy",
   "final_amount",
   "remarks",
-  "remarks_field"
+  "remarks_field",
+  "system_name",
+  "brand",
+  "system_type",
+  "grid_type",
+  "calculation_version",
+  "configuration_snapshot",
+  "last_generated_on",
+  "pricing_refreshed_on",
+  "is_demo"
  ],
  "fields": [
   {
    "fieldname": "basic_information_section",
    "fieldtype": "Section Break",
    "label": "Basic Information"
-  },
-  {
-   "fieldname": "system_details_section",
-   "fieldtype": "Section Break",
-   "label": "System Details"
-  },
-  {
-   "fieldname": "panel_count",
-   "fieldtype": "Int",
-   "in_list_view": 1,
-   "label": "Panel Count",
-   "reqd": 1
-  },
-  {
-   "default": "Checked",
-   "fieldname": "include_structure",
-   "fieldtype": "Check",
-   "label": "Include Structure"
-  },
-  {
-   "fieldname": "pricing",
-   "fieldtype": "Section Break",
-   "label": "Pricing"
-  },
-  {
-   "fieldname": "project_cost",
-   "fieldtype": "Currency",
-   "label": "Project Cost"
-  },
-  {
-   "fieldname": "subsidy",
-   "fieldtype": "Currency",
-   "label": "Subsidy"
-  },
-  {
-   "fieldname": "final_amount",
-   "fieldtype": "Currency",
-   "label": "Final Amount"
-  },
-  {
-   "fieldname": "remarks",
-   "fieldtype": "Section Break",
-   "label": "Remarks"
-  },
-  {
-   "fieldname": "remarks_field",
-   "fieldtype": "Small Text",
-   "label": "Remarks"
-  },
-  {
-   "default": "0",
-   "fieldname": "discount",
-   "fieldtype": "Currency",
-   "label": "Discount",
-   "non_negative": 1
-  },
-  {
-   "fieldname": "system_components_section",
-   "fieldtype": "Section Break",
-   "label": "System Components"
-  },
-  {
-   "fieldname": "table_proposal_bom",
-   "fieldtype": "Table",
-   "label": "Proposal Bom",
-   "options": "Solar Proposal BOM Item"
-  },
-  {
-   "fieldname": "package_name",
-   "fieldtype": "Link",
-   "label": "Package",
-   "options": "Solar Package",
-   "reqd": 1
-  },
-  {
-   "default": "Premier/Adani",
-   "fieldname": "panel_brand",
-   "fieldtype": "Select",
-   "label": "Panel Brand",
-   "options": "Premier/Adani\nAdani\nPremier\nRenewsys",
-   "reqd": 1
-  },
-  {
-   "default": "Today",
-   "fieldname": "proposal_date",
-   "fieldtype": "Date",
-   "in_list_view": 1,
-   "label": "Proposal Date",
-   "reqd": 1
-  },
-  {
-   "fieldname": "capacity_kw",
-   "fieldtype": "Float",
-   "label": "Capacity",
-   "non_negative": 1,
-   "reqd": 1
-  },
-  {
-   "fieldname": "material_cost",
-   "fieldtype": "Currency",
-   "label": "Material Cost"
-  },
-  {
-   "fieldname": "other_cost",
-   "fieldtype": "Currency",
-   "label": "Other Cost"
-  },
-  {
-   "fieldname": "cost_breakdown",
-   "fieldtype": "Table",
-   "label": "cost breakdown",
-   "options": "Project Cost Breakdown"
   },
   {
    "default": "Lead",
@@ -179,11 +91,287 @@
    "in_list_view": 1,
    "label": "Customer Name",
    "read_only": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "proposal_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Proposal Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "package_name",
+   "fieldtype": "Link",
+   "label": "System / Package",
+   "options": "Solar Package",
+   "reqd": 1
+  },
+  {
+   "fieldname": "capacity_kw",
+   "fieldtype": "Float",
+   "label": "Capacity",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "connection_type",
+   "fieldtype": "Select",
+   "label": "Number of Phases",
+   "options": "Single Phase\nThree Phase",
+   "default": "Single Phase"
+  },
+  {
+   "fieldname": "down_run_cabling",
+   "fieldtype": "Select",
+   "label": "Down Run Cabling",
+   "options": "Armoured Cabling\nConduit Cabling",
+   "default": "Conduit Cabling"
+  },
+  {
+   "fieldname": "system_details_section",
+   "fieldtype": "Section Break",
+   "label": "System Details"
+  },
+  {
+   "fieldname": "panel_capacity_w",
+   "fieldtype": "Int",
+   "label": "Panel Capacity (W)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "suggested_panel_count",
+   "fieldtype": "Int",
+   "label": "Suggested Panel Count",
+   "read_only": 1,
+   "description": "Server suggestion from requested capacity and selected panel wattage."
+  },
+  {
+   "fieldname": "panel_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Panel Count",
+   "reqd": 0,
+   "non_negative": 1,
+   "description": "Editable. Staff may request additional panels; inverter and material quantities use this count."
+  },
+  {
+   "fieldname": "inverter_count",
+   "fieldtype": "Int",
+   "label": "Inverter Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "actual_capacity_kw",
+   "fieldtype": "Float",
+   "label": "Installed Panel Capacity (kWp)",
+   "read_only": 1
+  },
+  {
+   "default": "Premier/Adani",
+   "fieldname": "panel_brand",
+   "fieldtype": "Select",
+   "label": "Panel Brand",
+   "options": "Premier/Adani\nAdani\nPremier\nRenewsys",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "include_structure",
+   "fieldtype": "Check",
+   "label": "Include Structure"
+  },
+  {
+   "fieldname": "allow_battery",
+   "fieldtype": "Check",
+   "label": "Package Allows Battery",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "include_battery",
+   "fieldtype": "Check",
+   "label": "Include Battery",
+   "depends_on": "eval:doc.allow_battery"
+  },
+  {
+   "fieldname": "input_editor",
+   "fieldtype": "HTML",
+   "label": "Additional Inputs"
+  },
+  {
+   "fieldname": "input_values",
+   "fieldtype": "Table",
+   "label": "Additional Site Inputs",
+   "options": "Solar Proposal Input Value"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "valuation_warehouse",
+   "fieldtype": "Link",
+   "label": "Valuation Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "system_components_section",
+   "fieldtype": "Section Break",
+   "label": "System Components"
+  },
+  {
+   "fieldname": "table_proposal_bom",
+   "fieldtype": "Table",
+   "label": "Bill of Materials",
+   "options": "Solar Proposal BOM Item"
+  },
+  {
+   "fieldname": "costing_status",
+   "fieldtype": "Select",
+   "label": "Costing Status",
+   "options": "\nComplete\nMissing Valuation / Conversion\nLegacy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "calculation_warnings",
+   "fieldtype": "Small Text",
+   "label": "Calculation Warnings",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "cost_breakdown",
+   "fieldtype": "Table",
+   "label": "Other Charges",
+   "options": "Project Cost Breakdown"
+  },
+  {
+   "fieldname": "material_cost",
+   "fieldtype": "Currency",
+   "label": "Material Cost",
+   "read_only": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "other_cost",
+   "fieldtype": "Currency",
+   "label": "Other Charges",
+   "read_only": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "project_cost",
+   "fieldtype": "Currency",
+   "label": "Project Cost",
+   "read_only": 1,
+   "options": "currency"
+  },
+  {
+   "default": "0",
+   "fieldname": "discount",
+   "fieldtype": "Currency",
+   "label": "Discount",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "subsidy",
+   "fieldtype": "Currency",
+   "label": "Subsidy"
+  },
+  {
+   "fieldname": "final_amount",
+   "fieldtype": "Currency",
+   "label": "Final Amount",
+   "read_only": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks_field",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "system_name",
+   "fieldtype": "Data",
+   "label": "System Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "brand",
+   "fieldtype": "Link",
+   "label": "Brand",
+   "options": "Brand",
+   "read_only": 1
+  },
+  {
+   "fieldname": "system_type",
+   "fieldtype": "Data",
+   "label": "System Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grid_type",
+   "fieldtype": "Data",
+   "label": "Grid Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "calculation_version",
+   "fieldtype": "Select",
+   "label": "Calculation Version",
+   "options": "\nLegacy\nTemplates v1",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "configuration_snapshot",
+   "fieldtype": "JSON",
+   "label": "Calculation Definition Snapshot",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "last_generated_on",
+   "fieldtype": "Datetime",
+   "label": "Materials Generated On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_refreshed_on",
+   "fieldtype": "Datetime",
+   "label": "Valuation Refreshed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "is_demo",
+   "fieldtype": "Check",
+   "label": "Demo Record",
+   "hidden": 1,
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-01 16:00:00.000000",
+ "modified": "2026-10-23 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Wahni Solar Proposal",
  "name": "Solar Proposal",
@@ -220,5 +408,6 @@
  "states": [],
  "title_field": "customer_name",
  "show_title_field_in_link": 1,
- "search_fields": "party,customer_name"
+ "search_fields": "party,customer_name",
+ "track_changes": 1
 }
