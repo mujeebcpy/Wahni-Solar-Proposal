@@ -52,38 +52,21 @@ class TestReportDeletion(unittest.TestCase):
                     controller.ProjectReport.on_trash(self.report)
             fake.db.set_value.assert_not_called()
 
-    def test_deleting_latest_report_restores_previous_report_and_status(self):
+    def test_deleting_the_project_report_clears_the_project_link(self):
         fake = MagicMock()
         fake.db.get_value.return_value = "R"
-        fake.get_all.return_value = [{"name": "PREVIOUS", "status": "Failed"}]
-        with patch.object(controller, "frappe", fake):
-            controller.ProjectReport.on_trash(self.report)
-        fake.db.get_value.assert_called_once_with(
-            "Project", "P", "custom_latest_project_report", for_update=True, wait=False
-        )
-        self.assertEqual(fake.get_all.call_args.kwargs["filters"], {"project": "P", "name": ["!=", "R"]})
-        fake.db.set_value.assert_called_once_with(
-            "Project", "P", {"custom_latest_project_report": "PREVIOUS", "custom_project_report_status": "Failed"},
-            update_modified=False,
-        )
-        fake.db.commit.assert_not_called()
-
-    def test_deleting_only_report_clears_latest_link(self):
-        fake = MagicMock()
-        fake.db.get_value.return_value = "R"
-        fake.get_all.return_value = []
         with patch.object(controller, "frappe", fake):
             controller.ProjectReport.on_trash(self.report)
         fake.db.set_value.assert_called_once_with(
             "Project", "P", {"custom_latest_project_report": None, "custom_project_report_status": None},
             update_modified=False,
         )
+        fake.db.commit.assert_not_called()
 
     def test_deleting_older_report_does_not_change_latest_link(self):
         fake = MagicMock()
         fake.db.get_value.return_value = "NEWER"
         with patch.object(controller, "frappe", fake):
             controller.ProjectReport.on_trash(self.report)
-        fake.get_all.assert_not_called()
         fake.db.set_value.assert_not_called()
 

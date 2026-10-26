@@ -88,11 +88,11 @@ retains its current category until you change it; new separate panel records are
 
 ## Generating and editing
 
-A Project has at most one record in each of **Customer Vendor Agreement**,
-**Customer KSEB Agreement**, **Solar Installation Checklist**, and **Solar Completion
-Certificate** (a required, unique Project link). Generating never creates them: a
-saved record is printed with its edits and overrides; otherwise the DocType's
-defaults are printed. A record is created only when a user chooses **Edit Details**.
+A Project has one record in each of **Customer Vendor Agreement**, **Customer KSEB
+Agreement**, **Solar Installation Checklist**, and **Solar Completion Certificate**
+(a required, unique Project link). Generating a document, or a report that includes
+it, creates the record with its defaults on first use and reuses it afterwards; saved
+edits and deliberately cleared defaults are never reset.
 
 Each record stores only document-specific inputs. Customer names/addresses,
 capacity, price, equipment, contacts, and bank details are resolved from the linked
@@ -112,7 +112,7 @@ Project's single **Generate** menu provides SLD, both agreements, Check List, Pr
 Completion Report, and the complete Project Report. Each action selects its mapped
 print format automatically and returns the file to the browser for download; nothing
 is attached to the Project. A document's download dialog offers **Edit Details**,
-which opens (or creates) its record. Generate again whenever a fresh copy is needed. KSEB Grid
+which opens its record. Generate again whenever a fresh copy is needed. KSEB Grid
 Check's Annexure I/II/III buttons save pending edits and render the corresponding
 format as private Grid Check attachments. Native annexures use bundled Manjari
 Regular/Bold fonts; no external font download is needed at print time.
@@ -130,8 +130,14 @@ site URL (a background worker has no request and wkhtmltopdf times out). It reso
 current sources, renders the documents and annexures (annexures are not saved on the
 Grid Check) and merges them. The merged PDF and editable SLD are kept in the Redis cache for six hours
 (`REPORT_OUTPUT_SECONDS`) and downloaded from the Project dialog or the Project Report
-form. The Project Report record keeps only the status and the included/omitted list.
-After expiry, generate the report again. Missing fields produce warnings with edit
+form. Each Project has one Project Report record, updated by every generation; it keeps
+only the status and the included/omitted list. After expiry, generate the report again.
+
+Rendered document and annexure PDFs are cached for 24 hours (`RENDER_CACHE_SECONDS`),
+keyed by a fingerprint of everything printed: resolved values, stored fields,
+overrides, the record and the print format version. An unchanged document is reused
+without running wkhtmltopdf; any edit to the record, its overrides or a linked source
+value produces a new fingerprint and a fresh render. Missing fields produce warnings with edit
 links; existing mandatory annexure validation and partial-report handling are retained.
 
 The consumer phase comes from Grid Check `phase`; plant connection type in the
@@ -151,7 +157,9 @@ City/County, falling back to the KSEB address.
 
 ### Upgrade compatibility
 
-Explicit Project overrides are not rewritten or imported into new DocTypes.
+Explicit Project overrides are not rewritten or imported into new DocTypes. The
+pre-sync patch `keep_one_project_report_per_project` keeps the latest Project Report
+for each Project before the Project link becomes unique.
 
 Existing Grid Checks receive intentional static annexure defaults through a
 one-time `wahni_kseb` patch; later edits/cleared values are never backfilled again.
@@ -162,9 +170,8 @@ Report downloads follow Project read permissions. Generation requires Project wr
 under the requesting user's permissions.
 
 System Managers and Projects Managers with access to the Project, and Administrator,
-can delete finished or failed report records. Queued/running reports cannot be deleted.
-Deleting the latest report restores the latest remaining generation on Project, or
-clears the link if none remains. Deleting a report also discards its cached files.
+can delete finished or failed report records. A running report cannot be deleted.
+Deleting a report clears the Project's link and discards its cached files.
 
 ## Tests
 
@@ -210,8 +217,8 @@ python -m unittest wahni_solar.solar_project.tests.test_project_documents -v
 python -m unittest wahni_kseb.annexure.test_printing -v
 ```
 
-On a staging site, run migration and generate a report from a Project without
-document records; confirm none are created. Use **Edit Details**, change a default
+On a staging site, run migration and generate a report twice from the same Project;
+confirm one Project Report and one record per included document exist. Use **Edit Details**, change a default
 (including clearing it) and an override, and regenerate. Change a source value and
 verify the next PDF changes. Also check a restricted user's list/print access and a
 signed Project override. These database/browser checks are separate from the

@@ -34,7 +34,8 @@ class TestReportGeneration(unittest.TestCase):
         self.frappe = MagicMock()
         self.frappe.session.user = "worker-user"
         self.frappe.get_doc.side_effect = self.get_doc
-        self.frappe.db.get_value.return_value = 1
+        # An existing Project Report is updated in place.
+        self.frappe.db.get_value.return_value = "REPORT-1"
         self.frappe.throw.side_effect = frappe.ValidationError
         self.frappe.cache.set_value.side_effect = self.save_output
         self.frappe.cache.exists.side_effect = lambda key: key in self.cached
@@ -51,6 +52,8 @@ class TestReportGeneration(unittest.TestCase):
             self.addCleanup(mock.stop)
 
     def get_doc(self, doctype, name=None):
+        if doctype == "Project Report":
+            return self.report
         if isinstance(doctype, dict):
             request = MagicMock()
             request.insert.return_value = self.report
@@ -154,7 +157,7 @@ class TestReportGeneration(unittest.TestCase):
         api.read_file.assert_not_called()
         self.frappe.cache.set_value.assert_not_called()
 
-    def test_native_documents_print_without_creating_records(self):
+    def test_native_documents_use_the_projects_record(self):
         writer = PdfWriter()
         writer.add_blank_page(width=321, height=456)
         original = pdf_bytes(writer)
@@ -165,11 +168,27 @@ class TestReportGeneration(unittest.TestCase):
             result = self.generate()
         self.assertEqual(render.call_args.args[0].doctype, "Solar Installation Checklist")
         api.get_document.assert_called_once_with("PROJECT-1", "Check List")
-        self.frappe.new_doc.assert_not_called()
         self.assertEqual(result["missing_fields"]["Check List"], ["tariff"])
         pdf = read_pdf(self.outputs["pdf"])
         self.assertEqual(float(pdf.pages[0].mediabox.width), 321)
         self.assertFalse(pdf.get_fields())
+
+    def test_regeneration_updates_the_single_project_report(self):
+        self.add_source("End Page", pdf_bytes(self.blank_writer()), origin="Project upload")
+        self.report.update(status="Failed", result="old", message="old")
+
+        self.generate()
+
+        self.frappe.get_doc.assert_any_call("Project Report", "REPORT-1")
+        self.assertFalse(any(isinstance(call.args[0], dict) for call in self.frappe.get_doc.call_args_list))
+        self.assertEqual(self.report.status, "Completed with omissions")
+        self.assertEqual(self.report.requested_by, "worker-user")
+        self.frappe.cache.delete_value.assert_any_call("wahni_solar:project_report:REPORT-1:pdf")
+
+    def blank_writer(self):
+        writer = PdfWriter()
+        writer.add_blank_page(width=100, height=100)
+        return writer
 
     def test_failed_report_discards_cached_outputs(self):
         self.add_source("SLD Template", (TEMPLATES / "SLD_Enphase.qet").read_bytes())

@@ -1,5 +1,6 @@
 """Stored document-specific inputs and permission-aware, live print context."""
 
+import hashlib
 import json
 import re
 
@@ -20,6 +21,8 @@ PRINT_FORMATS = {category: doctype for category, doctype in DOCUMENT_TYPES.items
 LAYOUT_FIELDTYPES = ("Section Break", "Column Break", "HTML", "Tab Break")
 # Formatted from stored dates; edit the date field instead.
 NOT_OVERRIDABLE = {"date", "date_month_year"}
+# Rendered PDFs are reused while their inputs are unchanged; cached, never stored as files.
+RENDER_CACHE_SECONDS = 24 * 60 * 60
 
 
 def stored_fieldnames(doc):
@@ -45,37 +48,25 @@ def category_for(doctype):
     frappe.throw("Unsupported Project document type.")
 
 
-def ensure_documents(project, categories=None):
-    """Serialize creation on Project; unique Project fields also protect Desk inserts."""
-    frappe.get_doc("Project", project).check_permission("write")
-    frappe.db.sql("SELECT name FROM `tabProject` WHERE name=%s FOR UPDATE", (project,))
-    result = {}
-    for category in categories if categories is not None else DOCUMENT_TYPES:
-        doctype = DOCUMENT_TYPES[category]
-        name = frappe.db.get_value(doctype, {"project": project}, "name", for_update=True)
-        if name:
-            doc = frappe.get_doc(doctype, name)
-            doc.check_permission("read")
-        else:
-            doc = frappe.new_doc(doctype)
-            doc.project = project
-            # Project write permission authorizes automatic creation. The controller
-            # checks it again; this does not grant access to linked source records.
-            doc.insert(ignore_permissions=True)
-        result[category] = doc
-    return result
-
-
 def get_document(project, category):
-    """The saved record when one exists; otherwise an unsaved record with defaults.
-    Printing never creates records; Project Documents opens one for editing."""
+    """The Project's single record for this document, created on first use.
+    The unique Project link guarantees one record; a concurrent insert is reused."""
     doctype = DOCUMENT_TYPES[category]
     name = frappe.db.get_value(doctype, {"project": project}, "name")
-    if name:
-        doc = frappe.get_doc(doctype, name)
-    else:
+    if not name:
+        frappe.get_doc("Project", project).check_permission("write")
         doc = frappe.new_doc(doctype)
         doc.project = project
+        frappe.db.savepoint("project_document")
+        try:
+            # Project write permission authorizes creation; the controller checks it again.
+            doc.insert(ignore_permissions=True)
+            return doc
+        except (frappe.DuplicateEntryError, frappe.UniqueValidationError):
+            frappe.db.rollback(save_point="project_document")
+            frappe.clear_last_message()
+            name = frappe.db.get_value(doctype, {"project": project}, "name")
+    doc = frappe.get_doc(doctype, name)
     doc.check_permission("read")
     return doc
 
@@ -103,8 +94,10 @@ class ProjectDocument(Document):
         frappe.get_doc("Project", self.project).check_permission("write")
 
     def before_print(self, print_settings=None):
-        # Never trust client-supplied resolved values in standard print requests.
-        self.print_context = resolve_print_context(self)
+        # Never trust client-supplied resolved values in standard print requests. A context
+        # prepared by render_document for this same object is reused, not re-resolved.
+        prepared = getattr(frappe.local, "wahni_print_contexts", {}).pop(id(self), None)
+        self.print_context = prepared or resolve_print_context(self)
 
 
 def resolve_print_context(doc):
@@ -143,21 +136,41 @@ def resolve_print_context(doc):
 
 
 def render_document(doc):
+    """Render the PDF, reusing a cached copy when everything printed is unchanged."""
     doc.check_permission("read")
     doc.check_permission("print")
     category = category_for(doc.doctype)
-    # get_print calls before_print with this same Document. Its resolved context
-    # therefore describes exactly the values used in the generated PDF.
-    content = frappe.get_print(doc.doctype, doc.name, print_format=PRINT_FORMATS[category],
-                               doc=doc, as_pdf=True, no_letterhead=1)
-    return content, doc.print_context
+    context = resolve_print_context(doc)
+    key = render_cache_key(doc, PRINT_FORMATS[category], context["values"])
+    content = frappe.cache.get_value(key, use_local_cache=False)
+    if content is None:
+        if not hasattr(frappe.local, "wahni_print_contexts"):
+            frappe.local.wahni_print_contexts = {}
+        frappe.local.wahni_print_contexts[id(doc)] = context
+        try:
+            content = frappe.get_print(doc.doctype, doc.name, print_format=PRINT_FORMATS[category],
+                                       doc=doc, as_pdf=True, no_letterhead=1)
+        finally:
+            frappe.local.wahni_print_contexts.pop(id(doc), None)
+        frappe.cache.set_value(key, content, expires_in_sec=RENDER_CACHE_SECONDS)
+    doc.print_context = context
+    return content, context
+
+
+def render_cache_key(doc, print_format, values):
+    """Fingerprint of everything a print shows: resolved values (including stored fields
+    and overrides), the record name and the print format version."""
+    format_modified = frappe.db.get_value("Print Format", print_format, "modified")
+    payload = json.dumps([doc.doctype, doc.name, print_format, str(format_modified), values],
+                         sort_keys=True, default=str)
+    return f"wahni_solar:rendered:{doc.doctype}:{hashlib.sha256(payload.encode()).hexdigest()}"
 
 
 @frappe.whitelist(methods=["POST"])
 def open_project_document(project, category):
     if category not in DOCUMENT_TYPES:
         frappe.throw("Choose a supported Project document.")
-    doc = ensure_documents(project, (category,))[category]
+    doc = get_document(project, category)
     return {"doctype": doc.doctype, "name": doc.name}
 
 

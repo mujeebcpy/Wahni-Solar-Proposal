@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import unittest
+from datetime import datetime
 from inspect import unwrap
 from unittest.mock import MagicMock, patch
 
@@ -19,13 +20,23 @@ class TestReportAPI(unittest.TestCase):
                        "proposed_solar_capacity": 3, **values})
 
     def test_annexures_are_rendered_without_saving_on_grid_check(self):
-        grid = self.grid()
-        with patch.object(api, "frappe") as fake:
+        grid = self.grid(modified="2026-10-26 10:00:00")
+        cache = {}
+        with patch.object(api, "frappe") as fake, patch.object(api, "now_datetime", return_value=datetime(2026, 10, 26)):
             fake.get_doc.return_value = grid
             fake.get_print.return_value = b"annexure"
+            fake.db.get_value.return_value = "2026-10-01"
+            fake.cache.get_value.side_effect = lambda key, **kwargs: cache.get(key)
+            fake.cache.set_value.side_effect = lambda key, value, **kwargs: cache.__setitem__(key, value)
             for number in (1, 2, 3):
                 self.assertEqual(api._render_annexure("G", number), b"annexure")
                 self.assertEqual(fake.get_print.call_args.kwargs["print_format"], f"KSEB Annexure {'I' * number}")
+            # An unchanged Grid Check reuses the rendered PDF; an edit renders again.
+            api._render_annexure("G", 1)
+            self.assertEqual(fake.get_print.call_count, 3)
+            grid.modified = "2026-10-26 11:00:00"
+            api._render_annexure("G", 1)
+            self.assertEqual(fake.get_print.call_count, 4)
         fake.get_all.assert_not_called()
         fake.get_attr.assert_not_called()
 

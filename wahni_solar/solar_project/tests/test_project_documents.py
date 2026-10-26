@@ -22,55 +22,68 @@ def document(doctype, **values):
 
 
 class TestProjectDocuments(unittest.TestCase):
-    def test_automatic_creation_reuses_all_four_records_and_never_resets_edits(self):
-        fake = MagicMock()
+    def test_first_use_creates_the_single_record_and_later_uses_reuse_it(self):
         stored = {}
-        fake.get_doc.side_effect = lambda dt, name: Record(name=name) if dt == "Project" else stored[dt]
-        fake.db.get_value.side_effect = lambda dt, filters, field, **kwargs: stored[dt].name if dt in stored else None
-
-        def new_doc(doctype):
-            doc = MagicMock()
-            doc.doctype, doc.name = doctype, "DOC-1"
-            doc.insert.side_effect = lambda **kwargs: stored.setdefault(doctype, doc)
-            return doc
-
-        fake.new_doc.side_effect = new_doc
-        with patch.object(documents, "frappe", fake):
-            first = documents.ensure_documents("PROJECT-1")
-            first["Project Completion Report"].electrical_inspector_approval_reference = ""
-            second = documents.ensure_documents("PROJECT-1")
-        self.assertEqual(len(stored), 4)
-        self.assertEqual(fake.new_doc.call_count, 4)
-        self.assertTrue(all(call.kwargs.get("for_update") for call in fake.db.get_value.call_args_list))
-        self.assertEqual(second["Project Completion Report"].electrical_inspector_approval_reference, "")
-        self.assertEqual(fake.db.sql.call_count, 2)
-        self.assertIn("FOR UPDATE", fake.db.sql.call_args.args[0])
-        for doc in stored.values():
-            doc.insert.assert_called_once_with(ignore_permissions=True)
-            doc.save.assert_not_called()
-
-    def test_printing_uses_saved_record_or_unsaved_defaults_without_inserting(self):
+        stored_doc = Record(doctype="Solar Installation Checklist", name="DOC-1", project="PROJECT-1")
         with patch.object(documents, "frappe") as fake:
-            fake.db.get_value.return_value = None
-            fake.new_doc.return_value = Record(doctype="Solar Installation Checklist", name=None)
-            doc = documents.get_document("PROJECT-1", "Check List")
-            self.assertEqual(doc.project, "PROJECT-1")
-            fake.new_doc.assert_called_once_with("Solar Installation Checklist")
-            fake.db.get_value.return_value = "DOC-1"
-            fake.get_doc.return_value = Record(doctype="Solar Installation Checklist", name="DOC-1", project="PROJECT-1")
-            self.assertEqual(documents.get_document("PROJECT-1", "Check List").name, "DOC-1")
-            fake.db.sql.assert_not_called()
-            fake.get_doc.return_value = Record(name="DOC-1", denied=True)
-            with self.assertRaises(frappe.PermissionError):
-                documents.get_document("PROJECT-1", "Check List")
+            fake.DuplicateEntryError = frappe.DuplicateEntryError
+            fake.UniqueValidationError = frappe.UniqueValidationError
+            fake.db.get_value.side_effect = lambda dt, filters, field: stored.get(dt)
+            fake.get_doc.side_effect = lambda dt, name: stored_doc if dt != "Project" else Record(name=name)
+
+            def new_doc(doctype):
+                doc = MagicMock(doctype=doctype)
+                doc.insert.side_effect = lambda **kwargs: stored.setdefault(doctype, "DOC-1")
+                return doc
+
+            fake.new_doc.side_effect = new_doc
+            created = documents.get_document("PROJECT-1", "Check List")
+            reused = documents.get_document("PROJECT-1", "Check List")
+        self.assertEqual(created.project, "PROJECT-1")
+        created.insert.assert_called_once_with(ignore_permissions=True)
+        self.assertIs(reused, stored_doc)
+        self.assertEqual(fake.new_doc.call_count, 1)
+        fake.db.sql.assert_not_called()
+
+    def test_concurrent_creation_reuses_the_existing_record(self):
+        existing = Record(doctype="Solar Installation Checklist", name="DOC-1", project="PROJECT-1")
+        with patch.object(documents, "frappe") as fake:
+            fake.DuplicateEntryError = frappe.DuplicateEntryError
+            fake.UniqueValidationError = frappe.UniqueValidationError
+            fake.db.get_value.side_effect = [None, "DOC-1"]
+            fake.get_doc.side_effect = lambda dt, name: existing if dt != "Project" else Record(name=name)
+            fake.new_doc.return_value.insert.side_effect = frappe.UniqueValidationError
+            self.assertIs(documents.get_document("PROJECT-1", "Check List"), existing)
+        fake.db.rollback.assert_called_once_with(save_point="project_document")
 
     def test_project_write_permission_is_required_before_creation(self):
         with patch.object(documents, "frappe") as fake:
+            fake.db.get_value.return_value = None
             fake.get_doc.return_value.check_permission.side_effect = frappe.PermissionError
             with self.assertRaises(frappe.PermissionError):
-                documents.ensure_documents("PROJECT-1")
+                documents.get_document("PROJECT-1", "Check List")
             fake.new_doc.assert_not_called()
-            fake.db.sql.assert_not_called()
+
+    def test_unchanged_documents_reuse_the_rendered_pdf(self):
+        doc = document("Customer Vendor Agreement", agreement_date="2026-10-01")
+        context = {"customer": {"customer_name": "Name"}, "proposal": {"capacity_kw": 5}, "warnings": [], "permissions": []}
+        cache = {}
+        fake_cache = MagicMock()
+        fake_cache.get_value.side_effect = lambda key, **kwargs: cache.get(key)
+        fake_cache.set_value.side_effect = lambda key, value, **kwargs: cache.__setitem__(key, value)
+        with patch.object(documents.frappe, "get_doc", return_value=Record(name="PROJECT-1")), \
+                patch.object(sources, "resolve_context", return_value=context), \
+                patch.object(documents.frappe, "db", MagicMock(), create=True), \
+                patch.object(documents.frappe, "cache", fake_cache, create=True), \
+                patch.object(documents.frappe, "get_print", return_value=b"pdf") as render:
+            self.assertEqual(documents.render_document(doc)[0], b"pdf")
+            documents.render_document(doc)
+            self.assertEqual(render.call_count, 1)
+            doc.overrides = json.dumps({"system_price": "1"})
+            documents.render_document(doc)
+            context["customer"]["customer_name"] = "Changed"
+            documents.render_document(doc)
+            self.assertEqual(render.call_count, 3)
 
     def test_live_sources_change_without_overwriting_saved_dates_or_defaults(self):
         doc = document("Customer Vendor Agreement", agreement_date="2026-10-01", vendor_signatory="", module_efficiency="20%")

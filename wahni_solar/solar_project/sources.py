@@ -12,6 +12,10 @@ from wahni_solar.solar_project.constants import ANNEXURES, LEGACY_PANEL_CATEGORI
 from wahni_solar.solar_project.project_documents import DOCUMENT_TYPES, PRINT_FORMATS
 
 
+INVERTER_GROUPS = ("Microinverters", "Inverters", "Inverter")
+EQUIPMENT_GROUPS = ("Panel", *INVERTER_GROUPS)
+
+
 def read_file(url):
     if not url or not url.startswith(("/files/", "/private/files/")):
         raise ValueError("Upload a local ERPNext file; external file URLs are not supported.")
@@ -233,13 +237,17 @@ def resolve_context(project_name, categories=None, include_sources=True):
     items = project.get("custom_table_project_bom") or (proposal.get("table_proposal_bom") if proposal else [])
     item_codes = {row.item_code for row in items or [] if row.item_code}
     if "Customer Vendor Agreement" in categories or (not include_sources and "Check List" in categories):
-        equipment = [linked("Item", code) for code in sorted(item_codes)]
+        # Only panel/inverter Items matter here; read them in one permission-aware query.
+        equipment = frappe.get_list("Item", filters={"name": ["in", sorted(item_codes)], "item_group": ["in", EQUIPMENT_GROUPS]},
+                                    fields=["name", "item_group", "brand", "custom_model", "custom_rated_capacity",
+                                            "custom_panel_watt_peak"], order_by="name asc", limit_page_length=0) if item_codes else []
+        refs.extend({"doctype": "Item", "name": item.name} for item in equipment)
         panels = [item for item in equipment if item.item_group == "Panel"]
         if not panel_item and len(panels) == 1:
             context["panel"] = fields(panels[0], "brand custom_model custom_panel_watt_peak")
         elif not panel_item and len(panels) > 1:
             warnings.append("Several panel Items match. Select the Project's Panel Item for this document.")
-        inverters = [item for item in equipment if item.item_group in ("Microinverters", "Inverters", "Inverter")]
+        inverters = [item for item in equipment if item.item_group in INVERTER_GROUPS]
         if len(inverters) == 1:
             context["inverter"] = fields(inverters[0], "brand custom_model custom_rated_capacity")
         elif len(inverters) > 1:

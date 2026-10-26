@@ -278,6 +278,10 @@ class TestReportSources(unittest.TestCase):
         }
         library = [Record(name="Vendor", category="Customer Vendor Agreement", file="/files/vendor.pdf")]
         def lists(doctype, **kwargs):
+            if doctype == "Item":
+                # One query for the material list's panel/inverter Items; denied Items are not returned.
+                self.assertEqual(kwargs["filters"]["name"], ["in", ["INV", "PANEL"]])
+                return [records[("Item", name)] for name in ("INV", "PANEL") if not records[("Item", name)].get("denied")]
             return {"KSEB Grid Check": ["G"], "Project Report Document": library}[doctype]
         with patch.object(source_module.frappe, "get_doc", side_effect=lambda dt, name: records[(dt, name)]), \
                 patch.object(source_module.frappe, "get_list", side_effect=lists), \
@@ -290,5 +294,4 @@ class TestReportSources(unittest.TestCase):
             self.assertIn({"doctype": "Item", "name": "INV"}, context["permissions"])
             attachments.assert_not_called()
             records[("Item", "INV")].denied = True
-            with self.assertRaises(frappe.PermissionError):
-                source_module.resolve_context("P", categories=("Customer Vendor Agreement",))
+            self.assertNotIn("inverter", source_module.resolve_context("P", categories=("Customer Vendor Agreement",)))

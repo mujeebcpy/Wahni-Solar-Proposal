@@ -11,7 +11,7 @@ from wahni_solar.solar_project.constants import (AGREEMENT_SECTIONS, LEGACY_PANE
                                                  REPORT_OUTPUTS, REPORT_OUTPUT_SECONDS, SECTIONS)
 from wahni_solar.solar_project.documents import merge_pdfs, personalise_qet, select_pdf_pages
 from wahni_solar.solar_project.sources import public_context, read_file, resolve_context
-from wahni_solar.solar_project.project_documents import DOCUMENT_TYPES, get_document, render_document
+from wahni_solar.solar_project.project_documents import DOCUMENT_TYPES, RENDER_CACHE_SECONDS, get_document, render_document
 
 
 def validate_project(doc, method=None):
@@ -87,7 +87,7 @@ def generate_project_document(project, category):
     if category not in ("SLD", *DOCUMENT_TYPES):
         frappe.throw("Choose SLD or a supported Project document.")
     doc = frappe.get_doc("Project", project)
-    doc.check_permission("read")
+    doc.check_permission("write")
     source_category = "SLD Template" if category == "SLD" else category
     context = resolve_context(project, categories=(source_category,))
     source = context["sources"][0]
@@ -123,8 +123,16 @@ def _render_annexure(grid_name, number):
                          ("proposed_solar_capacity", "Proposed Solar Capacity (kW)")):
         if not grid.get(field):
             raise ValueError(f"{label} is missing. Complete the Grid Check before generating Annexure {number}.")
-    return frappe.get_print(grid.doctype, grid.name, print_format=PRINT_FORMATS[number], doc=grid,
-                            as_pdf=True, no_letterhead=1)
+    # Unchanged Grid Checks reuse their PDF. Blank completion dates print the current month.
+    format_modified = frappe.db.get_value("Print Format", PRINT_FORMATS[number], "modified")
+    key = (f"wahni_solar:rendered:annexure:{grid.name}:{number}:{grid.modified}:{format_modified}:"
+           f"{now_datetime():%Y-%m}")
+    content = frappe.cache.get_value(key, use_local_cache=False)
+    if content is None:
+        content = frappe.get_print(grid.doctype, grid.name, print_format=PRINT_FORMATS[number], doc=grid,
+                                   as_pdf=True, no_letterhead=1)
+        frappe.cache.set_value(key, content, expires_in_sec=RENDER_CACHE_SECONDS)
+    return content
 
 
 def _render_sources(project, context):
@@ -139,7 +147,6 @@ def _render_sources(project, context):
             if source.get("annexure_number"):
                 content = _render_annexure(source["name"], source["annexure_number"])
             elif source.get("document_type"):
-                # A saved record supplies its edits; otherwise the DocType defaults are printed.
                 doc = get_document(project, source["category"])
                 source.update(doctype=doc.doctype, name=doc.name)
                 content, resolved = render_document(doc)
@@ -213,10 +220,18 @@ def build_report(project):
 
 @frappe.whitelist(methods=["POST"])
 def generate_project_report(project):
-    """Rendering runs in this request: print formats need the web request's site URL."""
+    """Rendering runs in this request: print formats need the web request's site URL.
+    Each Project has one Project Report record, updated by every generation."""
     frappe.get_doc("Project", project).check_permission("write")
-    report = frappe.get_doc({"doctype": "Project Report", "project": project, "requested_by": frappe.session.user,
-                             "status": "Running", "progress": 0}).insert(ignore_permissions=True)
+    name = frappe.db.get_value("Project Report", {"project": project}, "name")
+    if name:
+        report = frappe.get_doc("Project Report", name)
+        clear_outputs(report.name)
+        report.db_set({"requested_by": frappe.session.user, "status": "Running", "progress": 0,
+                       "message": None, "result": None, "available_until": None})
+    else:
+        report = frappe.get_doc({"doctype": "Project Report", "project": project, "requested_by": frappe.session.user,
+                                 "status": "Running", "progress": 0}).insert(ignore_permissions=True)
     try:
         result, outputs = build_report(project)
         for output, content in outputs.items():

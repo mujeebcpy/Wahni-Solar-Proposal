@@ -54,7 +54,6 @@
         });
     }
 
-    // The record is created only when a user chooses to edit its details.
     async function open_document(frm, category) {
         const { message } = await frappe.call({
             method: "wahni_solar.solar_project.project_documents.open_project_document",
@@ -93,7 +92,7 @@
             });
             if (frm.is_new()) return;
             if (frm.perm[0]?.write) {
-                // One menu: each document downloads directly; its dialog offers editing details.
+                // One menu: each document downloads directly; its dialog opens the Project's record.
                 for (const category of ["SLD", ...DOCUMENTS]) {
                     frm.add_custom_button(__(category), async () => {
                         if (frm.__generating) return;
@@ -111,14 +110,16 @@
                                 `<li>${escape(value)}</li>`).join("");
                             const blanks = message.missing_fields?.length
                                 ? `<p>${__("{0} fields left blank; complete them in {1}.", [message.missing_fields.length, category === "SLD" ? "QElectroTech" : __("the document details or its linked source records")])}</p>` : "";
-                            const editable = DOCUMENTS.includes(category);
                             frappe.msgprint({
                                 title: __(category),
                                 message: `<p><a href="${url}" download="${escape(message.filename)}">${__("Download {0}", [__(category)])}</a></p>` +
                                     blanks + (warnings ? `<ul>${warnings}</ul>` : ""),
-                                primary_action: editable ? {
+                                primary_action: message.document ? {
                                     label: __("Edit Details"),
-                                    action: () => { frappe.hide_msgprint(); open_document(frm, category); },
+                                    action: () => {
+                                        frappe.hide_msgprint();
+                                        frappe.set_route("Form", message.document.doctype, message.document.name);
+                                    },
                                 } : undefined,
                             });
                         } finally { frm.__generating = false; }
@@ -140,7 +141,9 @@
                 }, __("Generate"));
             }
             frm.add_custom_button(__("Shared Report Documents"), () => frappe.set_route("List", "Project Report Document"), __("View"));
-            frm.add_custom_button(__("Report History"), () => frappe.set_route("List", "Project Report", { project: frm.doc.name }), __("View"));
+            if (frm.doc.custom_latest_project_report) {
+                frm.add_custom_button(__("Project Report"), () => frappe.set_route("Form", "Project Report", frm.doc.custom_latest_project_report), __("View"));
+            }
             frappe.call({ method: `${api}.get_project_report_context`, args: { project: frm.doc.name },
                 callback: ({ message }) => {
                     frm.__report_grid_choices = message?.grid_choices || [];

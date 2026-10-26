@@ -20,7 +20,8 @@
    "options": "Project",
    "reqd": 1,
    "read_only": 1,
-   "in_list_view": 1
+   "in_list_view": 1,
+   "unique": 1
   },
   {
    "fieldname": "requested_by",
@@ -102,5 +103,6 @@
  "sort_field": "modified",
  "sort_order": "DESC",
  "track_changes": 1,
- "autoname": "format:SPR-{#####}"
+ "autoname": "format:SPR-{#####}",
+ "modified": "2026-10-26 20:00:00.000000"
 }
