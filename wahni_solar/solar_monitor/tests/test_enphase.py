@@ -2,7 +2,7 @@ from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 
 from wahni_solar.solar_monitor import enphase as e
 
@@ -12,7 +12,7 @@ def account(**values):
 	return frappe._dict(defaults, **values)
 
 
-class TestEnphase(FrappeTestCase):
+class TestEnphase(IntegrationTestCase):
 	def test_authorize_url_uses_default_redirect(self):
 		url = e.authorize_url(account(), "state1")
 		self.assertTrue(url.startswith(e.OAUTH + "/authorize?"))
@@ -104,8 +104,10 @@ class TestEnphase(FrappeTestCase):
 		with (
 			patch.object(e.service, "pages", return_value=systems),
 			patch.object(e.service, "authenticated", return_value=devices),
+			patch.object(e.frappe, "get_all", return_value=[]),
 		):
-			stations, found = e.inventory("acc")
+			stations, found, skipped = e.inventory("acc")
+		self.assertEqual(skipped, [])
 		values = stations[0][1]
 		self.assertEqual(stations[0][0], 11)
 		self.assertEqual(values["connection_status"], "System Normal")
@@ -113,31 +115,104 @@ class TestEnphase(FrappeTestCase):
 		self.assertNotIn("capacity_kw", values)
 		self.assertEqual(found, [(11, "M1", "Microinverter"), (11, "G1", "Gateway")])
 
-	def test_snapshot_converts_watts_and_adds_today(self):
+	SUMMARY = {
+		"current_power": 2500,
+		"energy_today": 4000,
+		"energy_lifetime": 1000000,
+		"size_w": 5000,
+		"status": "normal",
+		"summary_date": "2026-10-06",
+		"last_report_at": 1791000000,
+	}
+
+	def test_snapshot_converts_watts_and_reads_month_baseline_once(self):
 		station = frappe._dict(account="acc", external_id="11", timezone="Asia/Kolkata")
-		summary = {
-			"current_power": 2500,
-			"energy_today": 4000,
-			"energy_lifetime": 1000000,
-			"size_w": 5000,
-			"status": "normal",
-			"summary_date": "2026-10-06",
-			"last_report_at": 1791000000,
-		}
-		with patch.object(
-			e.service, "authenticated", side_effect=[summary, {"production": [10000, 0, 5000, 1000, 0]}]
-		) as call:
+		dated = {"energy_lifetime": 984000, "summary_date": "2026-10-01", "size_w": 0, "current_power": 0}
+		with patch.object(e.service, "authenticated", side_effect=[self.SUMMARY, dated]) as call:
 			data = e.snapshot(station)
-			params = call.call_args.args[2]
-		self.assertEqual(params, {"start_date": "2026-10-01", "end_date": "2026-10-05"})
+		self.assertEqual(call.call_args.args[2], {"summary_date": "2026-10-01"})
 		self.assertEqual(data["production_power_kw"], 2.5)
 		self.assertEqual(data["daily_production_kwh"], 4)
 		self.assertEqual(data["monthly_production_kwh"], 20)
 		self.assertEqual(data["total_production_kwh"], 1004)
 		self.assertEqual(data["capacity_kw"], 5)
+		self.assertEqual(data["lifetime_before_month_kwh"], 984)
+		self.assertEqual(data["lifetime_baseline_month"], date(2026, 10, 1))
 		self.assertEqual(data["production_date"], date(2026, 10, 6))
 		self.assertEqual(data["source_updated_at"], "1791000000")
 		self.assertEqual((data["has_power"], data["has_monthly"]), (1, 1))
+
+	def test_cached_baseline_needs_one_call(self):
+		station = frappe._dict(
+			account="acc",
+			external_id="11",
+			timezone="Asia/Kolkata",
+			lifetime_before_month_kwh=984,
+			lifetime_baseline_month="2026-10-01",
+		)
+		with patch.object(e.service, "authenticated", return_value=self.SUMMARY) as call:
+			data = e.snapshot(station)
+		self.assertEqual(call.call_count, 1)
+		self.assertEqual(data["monthly_production_kwh"], 20)
+
+	def test_stale_or_negative_baseline_falls_back_to_series(self):
+		# A baseline from last month is ignored, and a negative month never reaches the station.
+		station = frappe._dict(
+			account="acc",
+			external_id="11",
+			timezone="Asia/Kolkata",
+			lifetime_before_month_kwh=900,
+			lifetime_baseline_month="2026-09-01",
+		)
+		dated = {"energy_lifetime": 2000000, "summary_date": "2026-10-01"}
+		with patch.object(
+			e.service, "authenticated", side_effect=[self.SUMMARY, dated, {"production": [10000, 0, 5000, 1000, 0]}]
+		) as call:
+			data = e.snapshot(station)
+		self.assertEqual(call.call_args.args[2], {"start_date": "2026-10-01", "end_date": "2026-10-05"})
+		self.assertEqual(data["monthly_production_kwh"], 20)
+		self.assertNotIn("lifetime_before_month_kwh", data)
+
+	def test_inventory_skips_devices_of_known_systems(self):
+		systems = [{"system_id": 11, "name": "Old"}, {"system_id": 12, "name": "New"}]
+		with (
+			patch.object(e.service, "pages", return_value=systems),
+			patch.object(e.service, "authenticated", return_value={"devices": {}}) as call,
+			patch.object(e.frappe, "get_all", return_value=["11"]),
+		):
+			stations, _found, skipped = e.inventory("acc")
+		self.assertEqual(len(stations), 2)
+		self.assertEqual(skipped, [11])
+		self.assertEqual([c.args[1] for c in call.call_args_list], ["/systems/12/devices"])
+		with (
+			patch.object(e.service, "pages", return_value=systems),
+			patch.object(e.service, "authenticated", return_value={"devices": {}}) as call,
+		):
+			self.assertEqual(e.inventory("acc", refresh_devices=True)[2], [])
+		self.assertEqual(call.call_count, 2)
+
+	def test_triage_checks_only_problem_systems_or_open_alerts(self):
+		stations = [
+			frappe._dict(name="A", external_id="1"),
+			frappe._dict(name="B", external_id="2"),
+			frappe._dict(name="C", external_id="3"),
+			frappe._dict(name="D", external_id="4"),
+		]
+		systems = [
+			{"system_id": 1, "status": "normal"},
+			{"system_id": 2, "status": "micro"},
+			{"system_id": 3, "status": "normal"},
+		]
+		with (
+			patch.object(e.service, "pages", return_value=systems) as pages,
+			patch.object(e.frappe, "get_all", return_value=["C"]),
+			patch.object(e.frappe.db, "set_value") as set_value,
+		):
+			result = e.triage("acc", stations)
+		self.assertEqual(pages.call_count, 1)
+		# B has a problem, C still has an open alert to close, D is missing from the list.
+		self.assertEqual([s.name for s in result], ["B", "C", "D"])
+		self.assertIn(("Solar Station", "B", "connection_status", "Microinverters Not Reporting"), [c.args for c in set_value.call_args_list])
 
 	def test_snapshot_first_of_month_needs_one_call(self):
 		station = frappe._dict(account="acc", external_id="11", timezone="Asia/Kolkata")

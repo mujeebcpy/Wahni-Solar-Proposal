@@ -141,7 +141,8 @@ def check_station(account, station, start, end):
 	close_missing(station.name, seen, since=site_datetime(start))
 
 
-def enqueue(account):
+def enqueue(account, full=False):
+	"""Queue an alert check. Enphase checks only stations needing it unless `full` (weekly sweep)."""
 	with service.lock("solar-monitor-alerts-enqueue:" + account, 30, 5):
 		doc = service.account_doc(account)
 		elapsed = (
@@ -164,21 +165,22 @@ def enqueue(account):
 			queue="long",
 			timeout=7200,
 			account=account,
+			full=full,
 			enqueue_after_commit=True,
 		)
 		return {"status": "Queued"}
 
 
-def alerts_job(account):
+def alerts_job(account, full=False):
 	try:
 		with service.lock("solar-monitor-alerts:" + account, 7200, 1):
-			_check(account)
+			_check(account, full)
 	except service.Busy:
 		# Another worker is already checking this account; it will update the status.
 		pass
 
 
-def _check(account):
+def _check(account, full=False):
 	try:
 		doc = service.account_doc(account)
 		frappe.db.set_value(service.ACCOUNT, account, "alert_status", "Running")
@@ -195,6 +197,8 @@ def _check(account):
 		stations = frappe.get_all(
 			"Solar Station", filters={"account": account, "present": 1}, fields=["name", "external_id"]
 		)
+		if doc.provider == "Enphase" and not full:
+			stations = enphase.triage(account, stations)
 		failed = []
 		for station in stations:
 			try:

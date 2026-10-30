@@ -81,26 +81,47 @@ def history(account, body):
 	return rows
 
 
+def station_list(account):
+	"""Latest power and update time of every station of a Deye account, keyed by station ID.
+
+	One /station/list hit per 200 stations replaces a /station/latest hit per station; a short cache
+	lets every production job of one account update reuse the same list.
+	"""
+	key = "solar-monitor-deye-stations:" + account
+	cache = frappe.cache()
+	rows = cache.get_value(key)
+	if rows is None:
+		with service.lock(key + ":lock", 120, 60):
+			rows = cache.get_value(key)
+			if rows is None:
+				rows = {
+					str(row.get("id")): {k: row.get(k) for k in ("generationPower", "lastUpdateTime")}
+					for row in service.pages(account, "/v1.0/station/list", "stationList")
+				}
+				cache.set_value(key, rows, expires_in_sec=240)
+	return rows
+
+
+def latest(station):
+	row = station_list(station.account).get(str(station.external_id))
+	if row is None:
+		# Not in the cached list (e.g. added since): ask for this station only.
+		row = service.authenticated(station.account, "/v1.0/station/latest", {"stationId": int(station.external_id)})
+	return row
+
+
 def snapshot(station):
+	"""Usually one station-specific hit (this month's daily history). Lifetime energy is the cached
+	lifetime before this month plus this month; the yearly history is read once per month."""
 	today = local_date(station)
+	first = today.replace(day=1)
 	sid = int(station.external_id)
-	latest = service.authenticated(station.account, "/v1.0/station/latest", {"stationId": sid})
+	current = latest(station)
 	days = history(
 		station.account,
-		{
-			"stationId": sid,
-			"granularity": 2,
-			"startAt": str(today.replace(day=1)),
-			"endAt": str(today + timedelta(days=1)),
-		},
+		{"stationId": sid, "granularity": 2, "startAt": str(first), "endAt": str(today + timedelta(days=1))},
 	)
-	# Deye sample specifies endAt is excluded. Annual rows provide lifetime energy
-	# without polling devices or deriving energy from instantaneous power.
-	start_year = get_datetime(station.operating_since).year if station.operating_since else 2000
-	years = history(
-		station.account,
-		{"stationId": sid, "granularity": 4, "startAt": str(start_year), "endAt": str(today.year + 1)},
-	)
+	# Deye sample specifies endAt is excluded.
 	daily_rows = [
 		row
 		for row in days
@@ -113,16 +134,31 @@ def snapshot(station):
 		for row in days
 		if str(row.get("year")) == str(today.year) and str(row.get("month")) == str(today.month)
 	]
+	month = energy(month_rows)
+	baseline = None
+	if str(station.get("lifetime_baseline_month") or "") == str(first):
+		baseline = number(station.get("lifetime_before_month_kwh"))
+	if baseline is None and month is not None:
+		# Annual rows provide lifetime energy without polling devices or deriving it from power.
+		start_year = get_datetime(station.operating_since).year if station.operating_since else 2000
+		years = history(
+			station.account,
+			{"stationId": sid, "granularity": 4, "startAt": str(start_year), "endAt": str(today.year + 1)},
+		)
+		lifetime = energy(years)
+		baseline = None if lifetime is None or lifetime < month else lifetime - month
 	values = {
-		"production_power_kw": number(latest.get("generationPower")),
+		"production_power_kw": number(current.get("generationPower")),
 		"daily_production_kwh": energy(daily_rows),
-		"monthly_production_kwh": energy(month_rows),
-		"total_production_kwh": energy(years),
+		"monthly_production_kwh": month,
+		"total_production_kwh": None if baseline is None or month is None else baseline + month,
 	}
+	if baseline is not None:
+		values.update(lifetime_before_month_kwh=baseline, lifetime_baseline_month=first)
 	# Deye power is in W; energy values are in kWh.
 	if values["production_power_kw"] is not None:
 		values["production_power_kw"] /= 1000
-	return completed(values, today, latest.get("lastUpdateTime"))
+	return completed(values, today, current.get("lastUpdateTime"))
 
 
 def completed(values, day, source_time):
@@ -205,10 +241,17 @@ def totals(rows):
 	return result
 
 
+def refresh_cooldown(provider):
+	"""Enphase gateways report every 15 minutes, so refreshing sooner spends hits without new data."""
+	if provider == "Enphase":
+		return service.setting("enphase_production_refresh_cooldown", 900)
+	return service.setting("production_refresh_cooldown", 300)
+
+
 def enqueue(station):
 	with service.lock("solar-monitor-production-enqueue:" + station, 30, 5):
 		doc = frappe.get_doc("Solar Station", station)
-		service.account_doc(doc.account)
+		account = service.account_doc(doc.account)
 		if not doc.present:
 			frappe.throw(_("This station is no longer in the current inventory."))
 		elapsed = (
@@ -218,11 +261,9 @@ def enqueue(station):
 		)
 		if doc.production_status in ("Queued", "Running") and elapsed < 600:
 			return {"status": doc.production_status}
-		if elapsed < service.setting("production_refresh_cooldown", 300):
-			return {
-				"status": "Cached",
-				"retry_after": int(service.setting("production_refresh_cooldown", 300) - elapsed) + 1,
-			}
+		cooldown = refresh_cooldown(account.provider)
+		if elapsed < cooldown:
+			return {"status": "Cached", "retry_after": int(cooldown - elapsed) + 1}
 		frappe.db.set_value(
 			"Solar Station",
 			station,

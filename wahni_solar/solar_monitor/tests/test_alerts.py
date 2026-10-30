@@ -3,12 +3,12 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 
 from wahni_solar.solar_monitor import alerts as a
 
 
-class TestAlerts(FrappeTestCase):
+class TestAlerts(IntegrationTestCase):
 	def test_severity_puts_safety_and_failures_first(self):
 		self.assertEqual(a.severity(2, 1), "Critical")
 		self.assertEqual(a.severity(3, 0), "Critical")
@@ -71,3 +71,21 @@ class TestAlerts(FrappeTestCase):
 			final = db.set_value.call_args.args[2]
 			self.assertEqual(final["alert_status"], "Completed")
 			self.assertIn("A", final["alert_error"])
+
+	def test_enphase_checks_triaged_stations_unless_full_sweep(self):
+		from wahni_solar.solar_monitor import enphase
+
+		stations = [frappe._dict(name="A", external_id="1"), frappe._dict(name="B", external_id="2")]
+		for full, expected in ((False, ["B"]), (True, ["A", "B"])):
+			with (
+				patch.object(a.frappe, "db", new=MagicMock()),
+				patch.object(a.frappe, "get_all", return_value=stations),
+				patch.object(a.service, "account_doc", return_value=frappe._dict(provider="Enphase")),
+				patch.object(a.service, "setting", return_value=30),
+				patch.object(a.service, "now", return_value=datetime(2026, 10, 6, 12)),
+				patch.object(enphase, "triage", return_value=stations[1:]) as triage,
+				patch.object(enphase, "check_station") as check,
+			):
+				a._check("acc", full=full)
+			self.assertEqual([c.args[1].name for c in check.call_args_list], expected)
+			self.assertEqual(triage.called, not full)

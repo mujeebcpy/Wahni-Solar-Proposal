@@ -107,14 +107,71 @@ def secret(doc, field):
 	return get_decrypted_password(ACCOUNT, doc.name, field)
 
 
-def pace(doc):
+def app_identity(doc):
+	"""Provider quotas belong to the developer application, shared by accounts using the same app."""
 	if doc.provider == "Enphase":
-		# Enphase quotas belong to the developer application (client ID).
-		identity, per_minute = "enphase:" + doc.client_id, setting("enphase_requests_per_minute", 300)
+		return "enphase:" + doc.client_id
+	return doc.region + ":" + doc.app_id
+
+
+def month_period():
+	return now().strftime("%Y-%m")
+
+
+def _hits_key(doc, period):
+	digest = hashlib.sha256(app_identity(doc).encode()).hexdigest()
+	return frappe.cache().make_key(f"solar-monitor-hits:{period}:{digest}")
+
+
+def month_hits(doc):
+	"""Hits counted this calendar month for the account's application."""
+	period = month_period()
+	value = frappe.cache().get(_hits_key(doc, period))
+	if value is None:
+		# Redis was cleared: fall back to the counter saved on the account.
+		return int(doc.month_hits or 0) if doc.month_hits_period == period else 0
+	return int(value)
+
+
+def check_budget(doc):
+	if doc.provider != "Enphase":
+		return
+	budget = setting("enphase_monthly_budget", 9000)
+	if month_hits(doc) >= budget:
+		raise ProviderError(
+			_("This Enphase application used its monthly budget of {0} API hits. Updates resume next month.").format(
+				budget
+			)
+		)
+
+
+def count_hit(doc):
+	period = month_period()
+	key = _hits_key(doc, period)
+	cache = frappe.cache()
+	cache.set(key, month_hits(doc), nx=True, ex=40 * 86400)
+	value = cache.incr(key)
+	Account = frappe.qb.DocType(ACCOUNT)
+	same_app = (
+		(Account.client_id == doc.client_id)
+		if doc.provider == "Enphase"
+		else ((Account.region == doc.region) & (Account.app_id == doc.app_id))
+	)
+	frappe.qb.update(Account).set(Account.month_hits, value).set(Account.month_hits_period, period).where(
+		(Account.provider == doc.provider) & same_app
+	).run()
+
+
+def pace(doc, count=True):
+	"""Wait for the application's request slot; `count` records a provider API hit against the budget."""
+	if count:
+		check_budget(doc)
+	if doc.provider == "Enphase":
+		per_minute = setting("enphase_requests_per_minute", 300)
 	else:
-		identity, per_minute = doc.region + ":" + doc.app_id, setting("requests_per_minute", 30)
+		per_minute = setting("requests_per_minute", 30)
 	interval = 60 / per_minute
-	key = "solar-monitor-rate:" + hashlib.sha256(identity.encode()).hexdigest()
+	key = "solar-monitor-rate:" + hashlib.sha256(app_identity(doc).encode()).hexdigest()
 	cache = frappe.cache()
 	busy = _("Application request queue is busy. Please try again shortly.")
 	with lock(key + ":lock", 20 + interval, 15 + 2 * interval, busy):
@@ -127,12 +184,17 @@ def pace(doc):
 	frappe.qb.update(Account).set(Account.request_count, Coalesce(Account.request_count, 0) + 1).where(
 		Account.name == doc.name
 	).run()
+	if count:
+		count_hit(doc)
 
 
-def send(doc, method, url, token=None, headers=None, **kwargs):
-	"""Paced HTTP request with bounded 429/5xx backoff. Returns the successful response."""
+def send(doc, method, url, token=None, headers=None, count=True, **kwargs):
+	"""Paced HTTP request with bounded 429/5xx backoff. Returns the successful response.
+
+	OAuth token requests pass count=False: they are not Monitoring API hits.
+	"""
 	for attempt in range(3):
-		pace(doc)
+		pace(doc, count)
 		request_headers = dict(headers or {})
 		if token:
 			request_headers["Authorization"] = bearer(token)
@@ -373,10 +435,10 @@ def upsert(doctype, account, external_id, values, seen):
 	return doc.name
 
 
-def sync_job(account):
+def sync_job(account, refresh_devices=False):
 	try:
 		with lock("solar-monitor-inventory:" + account, 7200, 1):
-			_sync(account)
+			_sync(account, refresh_devices)
 	except Busy:
 		# Another worker is already syncing this account; it will update the status.
 		pass
@@ -408,7 +470,7 @@ def deye_inventory(account):
 	)
 
 
-def _sync(account):
+def _sync(account, refresh_devices=False):
 	try:
 		doc = account_doc(account)
 		frappe.db.set_value(ACCOUNT, account, "sync_status", "Running")
@@ -418,13 +480,16 @@ def _sync(account):
 		if doc.provider == "Enphase":
 			from wahni_solar.solar_monitor import enphase
 
-			stations, devices = enphase.inventory(account)
+			stations, devices, skipped = enphase.inventory(account, refresh_devices)
 		else:
 			stations, devices = deye_inventory(account)
+			skipped = []
 		seen = now()
 		station_names = {}
 		for external_id, values in stations:
 			station_names[str(external_id)] = upsert("Solar Station", account, external_id, values, seen)
+		# Devices of stations whose device list was not fetched this time stay as they are.
+		kept = [station_names[str(x)] for x in skipped]
 		for station_id, serial, device_type in devices:
 			station = station_names.get(str(station_id))
 			if not station or not serial:
@@ -432,9 +497,10 @@ def _sync(account):
 			upsert("Solar Device", account, serial, {"station": station, "device_type": device_type}, seen)
 		for dt in ("Solar Station", "Solar Device"):
 			table = frappe.qb.DocType(dt)
-			frappe.qb.update(table).set(table.present, 0).where(
-				(table.account == account) & (table.last_seen.isnull() | (table.last_seen < seen))
-			).run()
+			missing = (table.account == account) & (table.last_seen.isnull() | (table.last_seen < seen))
+			if dt == "Solar Device" and kept:
+				missing &= table.station.notin(kept)
+			frappe.qb.update(table).set(table.present, 0).where(missing).run()
 		frappe.db.set_value(
 			ACCOUNT, account, {"sync_status": "Completed", "last_successful_sync": seen, "sync_error": ""}
 		)

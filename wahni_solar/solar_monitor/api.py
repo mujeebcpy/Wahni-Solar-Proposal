@@ -129,7 +129,9 @@ def fetch_company_details(account: str):
 
 
 @frappe.whitelist(methods=["POST"])
-def sync_inventory(account: str):
+def sync_inventory(account: str, refresh_devices: int = 0):
+	"""Queue an inventory fetch. Enphase device lists (one hit per system) are fetched only for new
+	systems unless `refresh_devices` is set."""
 	frappe.only_for(MANAGER_ROLES)
 	with service.lock(
 		"solar-monitor-enqueue:" + account,
@@ -159,6 +161,7 @@ def sync_inventory(account: str):
 			queue="long",
 			timeout=7200,
 			account=account,
+			refresh_devices=bool(cint(refresh_devices)),
 			job_id=job_id,
 			enqueue_after_commit=True,
 		)
@@ -194,8 +197,14 @@ def get_overview(
 			"alert_status",
 			"last_alert_sync",
 			"alert_error",
+			"month_hits",
+			"month_hits_period",
 		],
 	)
+	period = service.month_period()
+	for row in accounts:
+		if row.month_hits_period != period:
+			row.month_hits = 0
 	allowed = {x.name for x in accounts}
 	if account and account not in allowed:
 		frappe.throw(_("Account does not belong to this provider."))
@@ -244,6 +253,7 @@ def get_overview(
 		"summary": summary,
 		"station_count": summary["station_count"],
 		"device_count": frappe.db.count("Solar Device", dict(filters, present=1)),
+		"hit_budget": service.setting("enphase_monthly_budget", 9000) if provider == "Enphase" else None,
 		"can_manage": "System Manager" in frappe.get_roles(),
 		"busy": any(r.production_status in ("Queued", "Running") for r in rows),
 	}

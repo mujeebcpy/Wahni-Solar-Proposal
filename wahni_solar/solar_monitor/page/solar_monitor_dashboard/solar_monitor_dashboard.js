@@ -373,6 +373,17 @@ frappe.pages["solar-monitor-dashboard"].on_page_load = function (wrapper) {
 		data.accounts
 			.filter((a) => !account.get_value() || a.name === account.get_value())
 			.forEach((a) => {
+				const hits = (a.month_hits || 0).toLocaleString();
+				const over = Boolean(data.hit_budget && a.month_hits >= data.hit_budget);
+				body.append(
+					$("<p>")
+						.addClass(over ? "text-danger" : "text-muted")
+						.text(
+							data.hit_budget
+								? __("{0}: API hits this month {1} / {2}", [a.account_label, hits, data.hit_budget.toLocaleString()])
+								: __("{0}: API hits this month {1}", [a.account_label, hits])
+						)
+				);
 				if (["Queued", "Running", "Failed"].includes(a.sync_status))
 					body.append(
 						$("<p>").text(

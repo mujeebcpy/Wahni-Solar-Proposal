@@ -171,6 +171,21 @@
    "fieldtype": "Datetime",
    "read_only": 1,
    "hidden": 1
+  },
+  {
+   "fieldname": "lifetime_before_month_kwh",
+   "label": "Lifetime Before Month (kWh)",
+   "fieldtype": "Float",
+   "read_only": 1,
+   "hidden": 1,
+   "description": "Cached lifetime energy at the start of the baseline month; saves a provider call per refresh."
+  },
+  {
+   "fieldname": "lifetime_baseline_month",
+   "label": "Lifetime Baseline Month",
+   "fieldtype": "Date",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "field_order": [
@@ -199,7 +214,9 @@
   "last_production_fetch",
   "production_status",
   "production_error",
-  "production_requested_at"
+  "production_requested_at",
+  "lifetime_before_month_kwh",
+  "lifetime_baseline_month"
  ],
  "permissions": [
   {

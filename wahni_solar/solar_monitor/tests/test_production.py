@@ -1,13 +1,13 @@
 from datetime import date, datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 
 from wahni_solar.solar_monitor import production as p
 
 
-class TestProduction(FrappeTestCase):
+class TestProduction(IntegrationTestCase):
 	def test_numeric_values_and_missing_readings(self):
 		self.assertEqual(p.number("2.5"), 2.5)
 		for x in [None, "", "NaN", "Infinity", True]:
@@ -20,7 +20,7 @@ class TestProduction(FrappeTestCase):
 		with patch.object(p.service, "utcnow", return_value=datetime(2026, 10, 6, 20)):
 			self.assertEqual(p.local_date(frappe._dict(timezone="Asia/Kolkata")), date(2026, 10, 7))
 
-	def test_snapshot_uses_daily_and_annual_history(self):
+	def test_snapshot_uses_station_list_and_reads_years_once_a_month(self):
 		station = frappe._dict(
 			account="account", external_id="123", timezone="Asia/Kolkata", operating_since="2024-01-01"
 		)
@@ -33,20 +33,71 @@ class TestProduction(FrappeTestCase):
 			{"year": 2025, "generationValue": 200},
 			{"year": 2026, "generationValue": 30},
 		]
+		listed = {"123": {"generationPower": 2500, "lastUpdateTime": 123}}
 		with (
 			patch.object(p, "local_date", return_value=date(2026, 10, 6)),
-			patch.object(
-				p.service, "authenticated", return_value={"generationPower": 2500, "lastUpdateTime": 123}
-			),
+			patch.object(p, "station_list", return_value=listed),
+			patch.object(p.service, "authenticated") as single,
 			patch.object(p, "history", side_effect=[days, years]) as history,
 		):
 			data = p.snapshot(station)
+			single.assert_not_called()
 			self.assertEqual(data["production_power_kw"], 2.5)
 			self.assertEqual(data["daily_production_kwh"], 20)
 			self.assertEqual(data["monthly_production_kwh"], 30)
 			self.assertEqual(data["total_production_kwh"], 330)
+			self.assertEqual(data["lifetime_before_month_kwh"], 300)
+			self.assertEqual(data["lifetime_baseline_month"], date(2026, 10, 1))
+			self.assertEqual(data["source_updated_at"], "123")
 			self.assertEqual(history.call_args_list[0].args[1]["endAt"], "2026-10-07")
 			self.assertEqual(history.call_args_list[1].args[1]["startAt"], "2024")
+
+		# Later in the month the cached baseline replaces the yearly history call.
+		station.update(lifetime_before_month_kwh=300, lifetime_baseline_month="2026-10-01")
+		with (
+			patch.object(p, "local_date", return_value=date(2026, 10, 6)),
+			patch.object(p, "station_list", return_value=listed),
+			patch.object(p, "history", return_value=days) as history,
+		):
+			data = p.snapshot(station)
+			self.assertEqual(history.call_count, 1)
+			self.assertEqual(data["total_production_kwh"], 330)
+
+	def test_station_missing_from_list_uses_latest(self):
+		station = frappe._dict(
+			account="account",
+			external_id="9",
+			timezone="Asia/Kolkata",
+			lifetime_before_month_kwh=5,
+			lifetime_baseline_month="2026-10-01",
+		)
+		with (
+			patch.object(p, "local_date", return_value=date(2026, 10, 6)),
+			patch.object(p, "station_list", return_value={}),
+			patch.object(p.service, "authenticated", return_value={"generationPower": 1000}) as single,
+			patch.object(p, "history", return_value=[]),
+		):
+			data = p.snapshot(station)
+		self.assertEqual(single.call_args.args[1], "/v1.0/station/latest")
+		self.assertEqual(data["production_power_kw"], 1)
+
+	def test_station_list_is_shared_between_stations(self):
+		cache = MagicMock()
+		cache.get_value.side_effect = [None, None, {"1": {}}]
+		with (
+			patch.object(p.frappe, "cache", return_value=cache),
+			patch.object(p.service, "lock"),
+			patch.object(p.service, "pages", return_value=[{"id": 1, "generationPower": 5}]) as pages,
+		):
+			self.assertEqual(p.station_list("acc"), {"1": {"generationPower": 5, "lastUpdateTime": None}})
+			self.assertEqual(p.station_list("acc"), {"1": {}})
+		self.assertEqual(pages.call_count, 1)
+		self.assertEqual(cache.set_value.call_args.kwargs["expires_in_sec"], 240)
+
+	def test_enphase_production_cooldown_is_longer(self):
+		with patch.object(p.service, "setting", side_effect=lambda key, default: default):
+			self.assertEqual(p.refresh_cooldown("Enphase"), 900)
+			self.assertEqual(p.refresh_cooldown("Deye"), 300)
 
 	def test_previous_day_is_not_todays_production(self):
 		row = frappe._dict(

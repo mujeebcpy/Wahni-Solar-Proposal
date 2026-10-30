@@ -34,6 +34,35 @@
    "depends_on": "eval:doc.provider!=='Enphase'"
   },
   {
+   "fieldname": "api_usage_section",
+   "fieldtype": "Section Break",
+   "label": "API Usage"
+  },
+  {
+   "fieldname": "month_hits",
+   "label": "API Hits This Month",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "description": "Provider API hits counted for this application (client ID / app ID) in the current calendar month."
+  },
+  {
+   "fieldname": "month_hits_period",
+   "label": "Hit Count Month",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_api_usage",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "request_count",
+   "label": "Request Count",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "hidden": 0
+  },
+  {
    "fieldname": "deye_credentials",
    "label": "Deye Credentials",
    "fieldtype": "Section Break",
@@ -228,13 +257,6 @@
    "hidden": 0
   },
   {
-   "fieldname": "request_count",
-   "label": "Request Count",
-   "fieldtype": "Int",
-   "read_only": 1,
-   "hidden": 0
-  },
-  {
    "fieldname": "alerts_section",
    "label": "Alerts",
    "fieldtype": "Section Break"
@@ -270,6 +292,11 @@
   "provider",
   "enabled",
   "region",
+  "api_usage_section",
+  "month_hits",
+  "month_hits_period",
+  "column_break_api_usage",
+  "request_count",
   "deye_credentials",
   "app_id",
   "app_secret",
@@ -301,7 +328,6 @@
   "sync_status",
   "sync_error",
   "sync_started_at",
-  "request_count",
   "alerts_section",
   "alert_status",
   "last_alert_sync",

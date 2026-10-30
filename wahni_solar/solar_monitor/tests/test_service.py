@@ -2,12 +2,12 @@ import hashlib
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 
 from wahni_solar.solar_monitor import service as s
 
 
-class TestService(FrappeTestCase):
+class TestService(IntegrationTestCase):
 	def test_hash_preserves_password(self):
 		value = " pass  café "
 		self.assertEqual(s.password_hash(value), hashlib.sha256(value.encode()).hexdigest())
@@ -112,6 +112,8 @@ class TestService(FrappeTestCase):
 			patch.object(s.frappe, "cache", return_value=cache),
 			patch.object(s.frappe, "db", new=MagicMock()) as db,
 			patch.object(s, "account_doc", return_value=doc),
+			# now() reads the system time zone through the mocked database.
+			patch.object(s, "now", return_value=datetime(2026, 1, 1)),
 			patch.object(
 				s,
 				"authenticated",

@@ -157,9 +157,7 @@ City/County, falling back to the KSEB address.
 
 ### Upgrade compatibility
 
-Explicit Project overrides are not rewritten or imported into new DocTypes. The
-pre-sync patch `keep_one_project_report_per_project` keeps the latest Project Report
-for each Project before the Project link becomes unique.
+Explicit Project overrides are not rewritten or imported into new DocTypes.
 
 Existing Grid Checks receive intentional static annexure defaults through a
 one-time `wahni_kseb` patch; later edits/cleared values are never backfilled again.

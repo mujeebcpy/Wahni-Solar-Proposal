@@ -6,7 +6,6 @@ one day and are renewed with the refresh token (one month); every API call also 
 """
 
 import base64
-import hashlib
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -102,6 +101,7 @@ def token_request(doc, params=None, data=None, refresh="", rejected=None):
 			headers={"Authorization": "Basic " + base64.b64encode(credentials).decode()},
 			params=params,
 			data=data,
+			count=False,
 		)
 	except service.ProviderHTTPError as exc:
 		if exc.status == 401:
@@ -195,9 +195,16 @@ def location(address):
 	return ", ".join(str(x) for x in parts if x) or None
 
 
-def inventory(account):
-	"""Returns ([(system_id, values)], [(system_id, serial, device_type)])."""
-	stations, devices = [], []
+def inventory(account, refresh_devices=False):
+	"""Returns ([(system_id, values)], [(system_id, serial, device_type)], skipped system IDs).
+
+	The systems list costs one hit per 100 systems; device lists cost one hit per system, so they are
+	fetched only for new systems unless `refresh_devices` is set. Skipped systems keep their devices.
+	"""
+	known = set()
+	if not refresh_devices:
+		known = set(frappe.get_all("Solar Station", filters={"account": account}, pluck="external_id"))
+	stations, devices, skipped = [], [], []
 	for row in service.pages(account, "/systems", "systems"):
 		system_id = row.get("system_id")
 		if not system_id:
@@ -215,6 +222,9 @@ def inventory(account):
 				},
 			)
 		)
+		if str(system_id) in known:
+			skipped.append(system_id)
+			continue
 		groups = service.authenticated(account, f"/systems/{int(system_id)}/devices", {}).get("devices") or {}
 		if not isinstance(groups, dict) or any(not isinstance(x, list) for x in groups.values()):
 			raise service.ProviderError(_("Provider returned an invalid device list."))
@@ -225,7 +235,7 @@ def inventory(account):
 					continue
 				label = DEVICE_TYPES.get(kind, kind.replace("_", " ").title())
 				devices.append((system_id, str(item["serial_number"]), label))
-	return stations, devices
+	return stations, devices, skipped
 
 
 def watts(value):
@@ -240,24 +250,57 @@ def provider_date(value):
 		return None
 
 
+def month_series(station, day, today):
+	"""Month-to-date Wh from the daily series (one hit); fallback when no baseline is usable."""
+	if day.day == 1:
+		return today
+	series = service.authenticated(
+		station.account,
+		f"/systems/{int(station.external_id)}/energy_lifetime",
+		{"start_date": str(day.replace(day=1)), "end_date": str(day - timedelta(days=1))},
+	).get("production")
+	if not isinstance(series, list):
+		raise service.ProviderError(_("Provider returned invalid production history."))
+	days = [watts(x) for x in series]
+	return None if any(x is None for x in days) or today is None else sum(days) + today
+
+
+def month_baseline(station, first):
+	"""Lifetime Wh before `first` (the 1st of the month): cached on the station, else one dated summary."""
+	if str(station.get("lifetime_baseline_month") or "") == str(first):
+		cached = production.number(station.get("lifetime_before_month_kwh"))
+		if cached is not None:
+			return cached * 1000
+	data = service.authenticated(
+		station.account, f"/systems/{int(station.external_id)}/summary", {"summary_date": str(first)}
+	)
+	# A dated summary reports lifetime energy up to the day before its summary_date.
+	if provider_date(data.get("summary_date")) != first:
+		return None
+	return watts(data.get("energy_lifetime"))
+
+
 def snapshot(station):
-	"""Two calls: the summary (power, today, lifetime) and this month's daily series before today."""
+	"""Usually one hit: the summary gives power, today and lifetime until yesterday. This month is
+	lifetime until yesterday minus the cached lifetime before the 1st, plus today. The baseline costs
+	nothing on the 1st and one dated summary on the first update of any other day of the month."""
 	sid = int(station.external_id)
 	summary = service.authenticated(station.account, f"/systems/{sid}/summary", {})
 	day = provider_date(summary.get("summary_date")) or production.local_date(station)
+	first = day.replace(day=1)
 	today = watts(summary.get("energy_today"))
 	before_today = watts(summary.get("energy_lifetime"))
-	month = today
-	if day.day > 1 and today is not None:
-		series = service.authenticated(
-			station.account,
-			f"/systems/{sid}/energy_lifetime",
-			{"start_date": str(day.replace(day=1)), "end_date": str(day - timedelta(days=1))},
-		).get("production")
-		if not isinstance(series, list):
-			raise service.ProviderError(_("Provider returned invalid production history."))
-		days = [watts(x) for x in series]
-		month = None if any(x is None for x in days) else sum(days) + today
+	baseline = before_today if day.day == 1 else None
+	if baseline is None and before_today is not None and today is not None:
+		baseline = month_baseline(station, first)
+	month = None
+	if baseline is not None and before_today is not None and today is not None:
+		month = before_today - baseline + today
+		if month < 0:
+			# A meter reset or provider correction: never show a negative month.
+			baseline = month = None
+	if month is None:
+		month = month_series(station, day, today)
 	power = watts(summary.get("current_power"))
 	# Enphase power is in W and energy in Wh.
 	values = {
@@ -268,6 +311,8 @@ def snapshot(station):
 		if today is None or before_today is None
 		else (before_today + today) / 1000,
 	}
+	if baseline is not None:
+		values.update(lifetime_before_month_kwh=baseline / 1000, lifetime_baseline_month=first)
 	size = watts(summary.get("size_w"))
 	if size:
 		values["capacity_kw"] = size / 1000
@@ -280,8 +325,9 @@ def snapshot(station):
 
 
 def event_types(account):
-	"""Event names by type ID, cached for a day to save API quota. Failures fall back to IDs."""
-	key = "solar-monitor-enphase-event-types:" + hashlib.sha256(account.encode()).hexdigest()
+	"""Event names by type ID. The mapping is global to Enphase, so one cached copy serves every
+	account for a week. Failures fall back to IDs and retry after an hour."""
+	key = "solar-monitor-enphase-event-types"
 	cache = frappe.cache()
 	names = cache.get_value(key)
 	if names is not None:
@@ -295,7 +341,7 @@ def event_types(account):
 		}
 	except service.ProviderError:
 		names = {}
-	cache.set_value(key, names, expires_in_sec=86400 if names else 3600)
+	cache.set_value(key, names, expires_in_sec=7 * 86400 if names else 3600)
 	return names
 
 
@@ -326,6 +372,22 @@ def alarm_values(row, names):
 		"alert_start": alerts.site_datetime(row.get("alarm_start_time")),
 		"alert_end": alerts.site_datetime(row.get("alarm_end_time")),
 	}
+
+
+def triage(account, stations):
+	"""Stations whose alarms need checking, from one systems-list hit per 100 systems.
+
+	Systems Enlighten reports as normal and without open alerts here are skipped; the weekly full
+	sweep still checks them for warnings that do not change the system status. Every station's
+	connection status is refreshed from the same list.
+	"""
+	statuses = {str(row.get("system_id")): row.get("status") for row in service.pages(account, "/systems", "systems")}
+	for station in stations:
+		status = statuses.get(str(station.external_id))
+		if status:
+			frappe.db.set_value("Solar Station", station.name, "connection_status", status_label(status))
+	with_open = set(frappe.get_all(alerts.ALERT, filters={"account": account, "status": "Open"}, pluck="station"))
+	return [s for s in stations if statuses.get(str(s.external_id)) != "normal" or s.name in with_open]
 
 
 def check_station(account, station, start=None, end=None):

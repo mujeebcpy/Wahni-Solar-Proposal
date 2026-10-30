@@ -296,3 +296,10 @@ has_permission['Solar Installation Checklist'] = "wahni_solar.solar_project.proj
 permission_query_conditions['Solar Installation Checklist'] = "wahni_solar.solar_project.project_documents.solar_installation_checklist_query"
 has_permission['Solar Completion Certificate'] = "wahni_solar.solar_project.project_documents.has_document_permission"
 permission_query_conditions['Solar Completion Certificate'] = "wahni_solar.solar_project.project_documents.solar_completion_certificate_query"
+
+scheduler_events = {
+	"cron": {
+		# After sunset (system time zone), so today's solar energy is final.
+		"0 19 * * *": ["wahni_solar.solar_monitor.schedule.daily_refresh"],
+	},
+}

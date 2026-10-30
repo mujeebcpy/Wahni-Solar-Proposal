@@ -6,6 +6,13 @@
  "engine": "InnoDB",
  "fields": [
   {
+   "fieldname": "auto_daily_refresh",
+   "label": "Auto Daily Refresh",
+   "fieldtype": "Check",
+   "default": "1",
+   "description": "Refresh production and check alerts for every station once a day after sunset. Turn off to update only on demand."
+  },
+  {
    "fieldname": "refresh_cooldown",
    "label": "Refresh Cooldown",
    "fieldtype": "Int",
@@ -41,15 +48,32 @@
    "label": "Alert Lookback (days, max 180)",
    "fieldtype": "Int",
    "default": 30
+  },
+  {
+   "fieldname": "enphase_production_refresh_cooldown",
+   "label": "Enphase Production Refresh Cooldown (seconds)",
+   "fieldtype": "Int",
+   "default": 900,
+   "description": "Enphase gateways report every 15 minutes; refreshing sooner spends hits without new data."
+  },
+  {
+   "fieldname": "enphase_monthly_budget",
+   "label": "Enphase Monthly Hit Budget",
+   "fieldtype": "Int",
+   "default": 9000,
+   "description": "Provider calls stop once an Enphase application reaches this many hits in a month (Partner plan: 10,000 free)."
   }
  ],
  "field_order": [
+  "auto_daily_refresh",
   "refresh_cooldown",
   "token_renewal_margin",
   "requests_per_minute",
   "enphase_requests_per_minute",
   "production_refresh_cooldown",
-  "alert_lookback_days"
+  "alert_lookback_days",
+  "enphase_production_refresh_cooldown",
+  "enphase_monthly_budget"
  ],
  "permissions": [
   {

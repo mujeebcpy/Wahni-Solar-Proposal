@@ -31,15 +31,23 @@ frappe.ui.form.on("Solar API Account", {
 				)
 			);
 		}
-		frm.add_custom_button(__("Fetch Stations & Devices"), () =>
-			call("sync_inventory", (r) => ({
-				message: __(
-					"Inventory sync is {0}. Stations and devices will update in the background; reload this form to see the result.",
-					[r.status]
-				),
-				indicator: "blue",
-			}))
-		);
+		const synced = (r) => ({
+			message: __(
+				"Inventory sync is {0}. Stations and devices will update in the background; reload this form to see the result.",
+				[r.status]
+			),
+			indicator: "blue",
+		});
+		frm.add_custom_button(__("Fetch Stations & Devices"), () => call("sync_inventory", synced));
+		if (frm.doc.provider === "Enphase") {
+			// Normal fetches read device lists of new systems only; this re-reads all (1 API hit per system).
+			frm.add_custom_button(__("Refresh All Devices"), () =>
+				frappe.confirm(
+					__("Re-read the device list of every system? This uses one Enphase API hit per system."),
+					() => call("sync_inventory", synced, { refresh_devices: 1 })
+				)
+			);
+		}
 	},
 });
 
