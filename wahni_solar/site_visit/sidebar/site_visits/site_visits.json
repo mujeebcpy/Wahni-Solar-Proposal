@@ -1,0 +1,30 @@
+{
+ "app": "wahni_solar",
+ "doctype": "Sidebar",
+ "name": "Site Visits",
+ "title": "Site Visits",
+ "module": "Site Visit",
+ "header_icon": "map-pin",
+ "standard": 1,
+ "items": [
+  {
+   "type": "Link",
+   "label": "Home",
+   "link_type": "Workspace",
+   "link_to": "Site Visits",
+   "icon": "house"
+  },
+  {
+   "type": "Link",
+   "label": "Site Visit Reports",
+   "link_type": "DocType",
+   "link_to": "Site Visit",
+   "icon": "clipboard-list",
+   "is_default_module": 1
+  }
+ ],
+ "creation": "2026-11-13 12:39:26.000000",
+ "modified": "2026-11-13 12:39:26.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator"
+}

@@ -1,7 +1,7 @@
 {
  "doctype": "DocType",
  "name": "Solar Station",
- "module": "Solar Monitor",
+ "module": "Wahni Solar Monitor",
  "issingle": 0,
  "engine": "InnoDB",
  "fields": [

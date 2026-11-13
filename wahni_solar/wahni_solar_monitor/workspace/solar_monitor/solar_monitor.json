@@ -3,7 +3,7 @@
  "name": "Solar Monitor",
  "label": "Solar Monitor",
  "title": "Solar Monitor",
- "module": "Solar Monitor",
+ "module": "Wahni Solar Monitor",
  "public": 1,
  "is_hidden": 0,
  "sequence_id": 40,

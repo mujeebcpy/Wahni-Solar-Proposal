@@ -28,6 +28,11 @@ frappe.ui.form.on("Solar Proposal", {
             frm.add_custom_button(__("Project"), () => frappe.model.open_mapped_doc({
                 method: "wahni_solar.wahni_solar_proposal.doctype.solar_proposal.solar_proposal.make_project", frm
             }), __("Create"));
+            if (frappe.model.can_create("Site Visit")) {
+                frm.add_custom_button(__("Site Visit"), () => frappe.model.open_mapped_doc({
+                    method: "wahni_solar.site_visit.api.make_site_visit", frm
+                }), __("Create"));
+            }
         }
         frm.add_custom_button(__("Calculate Materials"), () => preview(frm, true));
         frm.add_custom_button(__("Use Suggested Panel Count"), () => {

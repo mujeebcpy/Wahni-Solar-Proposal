@@ -73,6 +73,9 @@
             update_grid_connection(frm);
         },
         setup(frm) {
+            frm.set_query("custom_site_visit", () => ({
+                filters: { solar_proposal: frm.doc.custom_solar_proposal || "" },
+            }));
             frm.set_query("custom_panel_item", () => ({
                 filters: { item_group: "Panel" },
             }));

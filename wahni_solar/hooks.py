@@ -66,7 +66,7 @@ never_skip_patches = [
     "wahni_solar.patches.delete_unused_legacy_solar_configuration",
 ]
 
-fixtures = [{"dt": "Role", "filters": [["name", "in", ["Solar Monitor Viewer"]]]}]
+fixtures = [{"dt": "Role", "filters": [["name", "in", ["Solar Monitor Viewer", "Project Supervisor"]]]}]
 
 # Print formats in proposal_pdf.FORMATS (PDF Generator "wkhtmltopdf + proposal artwork") get page artwork
 # and/or page numbers stamped on: Solar Proposal, Customer Vendor Agreement, Customer KSEB Agreement
@@ -74,7 +74,14 @@ pdf_generator = ["wahni_solar.wahni_solar_proposal.proposal_pdf.get_pdf"]
 override_whitelisted_methods = {
     "frappe.utils.print_format.download_pdf": "wahni_solar.wahni_solar_proposal.proposal_pdf.download_pdf"
 }
-doc_events = {"Project": {"validate": "wahni_solar.solar_project.api.validate_project"}}
+doc_events = {
+    "Project": {
+        "validate": [
+            "wahni_solar.solar_project.api.validate_project",
+            "wahni_solar.site_visit.api.validate_project_site_visit",
+        ]
+    }
+}
 has_permission = {"Project Report": "wahni_solar.solar_project.permissions.has_report_permission"}
 permission_query_conditions = {
     "Project Report": "wahni_solar.solar_project.permissions.report_query_conditions"

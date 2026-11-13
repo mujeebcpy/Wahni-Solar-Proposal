@@ -11,6 +11,7 @@ from erpnext.selling.doctype.quotation.quotation import (
 )
 from wahni_solar.wahni_solar_proposal import configuration
 from wahni_solar.wahni_solar_proposal.rules import RuleError
+from wahni_solar.site_visit.api import get_proposal_visit, warn_incomplete_visit
 
 PARTY_TYPES = ("Customer", "Lead", "Prospect")
 
@@ -148,12 +149,15 @@ def make_project(source_name, target_doc=None):
     if not party:
         frappe.throw("Solar Proposal {0} has no Party linked".format(source_name))
 
+    visit = get_proposal_visit(source_name)
+    warn_incomplete_visit(visit)
     customer = get_customer(proposal_to, party)
 
     def set_missing_values(source, target):
         target.customer = customer
         target.project_name = f"{source.package_name} - {customer}"
         target.custom_solar_proposal = source.name
+        target.custom_site_visit = visit.name if visit else None
 
     doclist = get_mapped_doc("Solar Proposal", source_name, {
         "Solar Proposal": {

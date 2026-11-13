@@ -1,6 +1,19 @@
 {
  "custom_fields": [
   {
+   "dt": "Project",
+   "fieldname": "custom_site_visit",
+   "fieldtype": "Link",
+   "label": "Site Visit",
+   "options": "Site Visit",
+   "insert_after": "custom_solar_proposal",
+   "module": "Site Visit",
+   "name": "Project-custom_site_visit",
+   "no_copy": 1,
+   "reqd": 0,
+   "description": "Optional. Automatically linked from the Solar Proposal, even when the visit is incomplete."
+  },
+  {
    "_assign": null,
    "_comments": null,
    "_liked_by": null,
@@ -460,7 +473,7 @@
    "property": "field_order",
    "property_type": "Data",
    "row_name": null,
-   "value": "[\"naming_series\", \"project_name\", \"status\", \"project_type\", \"is_active\", \"percent_complete_method\", \"percent_complete\", \"column_break_5\", \"project_template\", \"expected_start_date\", \"expected_end_date\", \"priority\", \"department\", \"custom_solar_project_data\", \"custom_solar_proposal\", \"custom_table_project_bom\", \"custom_cost_breakdown\", \"custom_project_report_section\", \"custom_report_grid_check\", \"custom_report_sales_invoice\", \"custom_panel_item\", \"custom_report_attachments\", \"custom_latest_project_report\", \"custom_project_report_status\", \"customer_details\", \"customer\", \"column_break_14\", \"sales_order\", \"users_section\", \"users\", \"copied_from\", \"section_break0\", \"notes\", \"section_break_18\", \"actual_start_date\", \"actual_time\", \"column_break_20\", \"actual_end_date\", \"project_details\", \"estimated_costing\", \"total_costing_amount\", \"total_purchase_cost\", \"company\", \"column_break_28\", \"total_sales_amount\", \"total_billable_amount\", \"total_billed_amount\", \"total_consumed_material_cost\", \"cost_center\", \"margin\", \"gross_margin\", \"column_break_37\", \"per_gross_margin\", \"monitor_progress\", \"collect_progress\", \"holiday_list\", \"frequency\", \"from_time\", \"to_time\", \"first_email\", \"second_email\", \"daily_time_to_send\", \"day_to_send\", \"weekly_time_to_send\", \"column_break_45\", \"message\"]"
+   "value": "[\"naming_series\", \"project_name\", \"status\", \"project_type\", \"is_active\", \"percent_complete_method\", \"percent_complete\", \"column_break_5\", \"project_template\", \"expected_start_date\", \"expected_end_date\", \"priority\", \"department\", \"custom_solar_project_data\", \"custom_solar_proposal\", \"custom_site_visit\", \"custom_table_project_bom\", \"custom_cost_breakdown\", \"custom_project_report_section\", \"custom_report_grid_check\", \"custom_report_sales_invoice\", \"custom_panel_item\", \"custom_report_attachments\", \"custom_latest_project_report\", \"custom_project_report_status\", \"customer_details\", \"customer\", \"column_break_14\", \"sales_order\", \"users_section\", \"users\", \"copied_from\", \"section_break0\", \"notes\", \"section_break_18\", \"actual_start_date\", \"actual_time\", \"column_break_20\", \"actual_end_date\", \"project_details\", \"estimated_costing\", \"total_costing_amount\", \"total_purchase_cost\", \"company\", \"column_break_28\", \"total_sales_amount\", \"total_billable_amount\", \"total_billed_amount\", \"total_consumed_material_cost\", \"cost_center\", \"margin\", \"gross_margin\", \"column_break_37\", \"per_gross_margin\", \"monitor_progress\", \"collect_progress\", \"holiday_list\", \"frequency\", \"from_time\", \"to_time\", \"first_email\", \"second_email\", \"daily_time_to_send\", \"day_to_send\", \"weekly_time_to_send\", \"column_break_45\", \"message\"]"
   }
  ],
  "sync_on_migrate": 1

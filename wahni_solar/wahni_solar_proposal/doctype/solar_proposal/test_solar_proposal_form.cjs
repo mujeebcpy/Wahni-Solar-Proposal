@@ -34,6 +34,7 @@ function environment() {
             call(args) { return new Promise(resolve => requests.push({args, resolve})); },
             prompt(df, callback) { state.prompt_callback = callback; },
             throw(message) { throw new Error(message); },
+            model: {can_create: () => true, open_mapped_doc: options => { state.mapped = options; }},
             utils: {debounce: callback => callback}
         }
     };
@@ -115,12 +116,37 @@ async function test_input_initialization_does_not_overwrite_values_or_schedule_a
     assert.equal(frm.scheduled_count, 1);
 }
 
+async function test_site_visit_action_is_available_on_saved_proposals_with_create_permission() {
+    const {context, handlers, state, frm} = environment();
+    frm.doc.calculation_version = "Legacy";
+    frm.is_new = () => false;
+    frm.set_df_property = () => {};
+    const buttons = [];
+    frm.add_custom_button = (label, action, group) => buttons.push({label, action, group});
+    handlers["Solar Proposal"].refresh(frm);
+    const visit = buttons.find(button => button.label === "Site Visit");
+    assert.equal(visit.group, "Create");
+    visit.action();
+    assert.equal(state.mapped.method, "wahni_solar.site_visit.api.make_site_visit");
+    assert.equal(state.mapped.frm, frm);
+    buttons.length = 0;
+    context.frappe.model.can_create = () => false;
+    handlers["Solar Proposal"].refresh(frm);
+    assert.equal(buttons.some(button => button.label === "Site Visit"), false);
+    buttons.length = 0;
+    context.frappe.model.can_create = () => true;
+    frm.is_new = () => true;
+    handlers["Solar Proposal"].refresh(frm);
+    assert.equal(buttons.some(button => button.label === "Site Visit"), false);
+}
+
 (async () => {
     for (const test of [
         test_rapid_capacity_changes_and_manual_panel_count,
         test_stale_preview_cannot_replace_a_newer_result,
         test_quantity_edit_invalidates_preview_before_reason_prompt_finishes,
-        test_input_initialization_does_not_overwrite_values_or_schedule_a_preview
+        test_input_initialization_does_not_overwrite_values_or_schedule_a_preview,
+        test_site_visit_action_is_available_on_saved_proposals_with_create_permission
     ]) await test();
-    process.stdout.write("4 proposal form regression checks passed.\n");
+    process.stdout.write("5 proposal form regression checks passed.\n");
 })().catch(error => { console.error(error); process.exitCode = 1; });
