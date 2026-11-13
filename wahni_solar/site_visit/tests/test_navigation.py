@@ -21,7 +21,7 @@ class TestNavigation(unittest.TestCase):
         sidebar = json.loads((APP / "site_visit/sidebar/site_visits/site_visits.json").read_text())
         self.assertEqual(sidebar["module"], "Site Visit")
         self.assertEqual(sidebar["name"], "Site Visits")
-        self.assertEqual([row["link_to"] for row in sidebar["items"]], ["Site Visits", "Site Visit"])
+        self.assertEqual([row["link_to"] for row in sidebar["items"]], ["Site Visits", "Site Visit", "PMS Visit"])
         proposal = json.loads((APP / "wahni_solar_proposal/sidebar/wahni_solar_proposal/wahni_solar_proposal.json").read_text())
         self.assertNotIn("Site Visits", [row.get("link_to") for row in proposal["items"]])
 

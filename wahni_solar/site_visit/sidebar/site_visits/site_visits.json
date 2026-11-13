@@ -21,10 +21,18 @@
    "link_to": "Site Visit",
    "icon": "clipboard-list",
    "is_default_module": 1
+  },
+  {
+   "type": "Link",
+   "label": "PMS Visits",
+   "link_type": "DocType",
+   "link_to": "PMS Visit",
+   "icon": "wrench",
+   "is_default_module": 1
   }
  ],
  "creation": "2026-11-13 12:39:26.000000",
- "modified": "2026-11-13 12:39:26.000000",
+ "modified": "2026-11-13 16:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator"
 }

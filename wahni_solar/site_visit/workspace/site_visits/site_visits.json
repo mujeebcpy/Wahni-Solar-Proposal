@@ -8,12 +8,15 @@
  "public": 1,
  "is_hidden": 0,
  "sequence_id": 40,
- "content": "[{\"id\":\"site-visit-header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Site Visit</span>\",\"col\":12}},{\"id\":\"site-visits\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Site Visits\",\"col\":3}}]",
- "shortcuts": [{"label": "Site Visits", "link_to": "Site Visit", "type": "DocType", "doc_view": "List"}],
+ "content": "[{\"id\":\"site-visit-header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Site Visit</span>\",\"col\":12}},{\"id\":\"site-visits\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Site Visits\",\"col\":3}},{\"id\":\"pms-visits\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"PMS Visits\",\"col\":3}}]",
+ "shortcuts": [
+  {"label": "Site Visits", "link_to": "Site Visit", "type": "DocType", "doc_view": "List"},
+  {"label": "PMS Visits", "link_to": "PMS Visit", "type": "DocType", "doc_view": "List"}
+ ],
  "links": [],
  "roles": [],
  "creation": "2026-11-13 12:00:00.000000",
- "modified": "2026-11-13 12:10:00.000000",
+ "modified": "2026-11-13 16:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "standard": 1

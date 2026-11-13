@@ -4,11 +4,17 @@ bench --site <site> execute wahni_solar.site_visit.tests.test_integration.run
 """
 
 import unittest
+from io import BytesIO
+from unittest.mock import patch
 
 import frappe
 from frappe.utils import nowdate
+from frappe.utils.file_manager import save_file
+from PIL import Image
+from PIL.PngImagePlugin import PngInfo
 
 from wahni_solar.site_visit import api
+from wahni_solar.site_visit import migrate_pms
 from wahni_solar.wahni_solar_proposal.doctype.solar_proposal.solar_proposal import make_project
 
 
@@ -155,6 +161,126 @@ class TestSiteVisitIntegration(unittest.TestCase):
         visit.status = "Completed"
         with self.assertRaises(frappe.PermissionError):
             visit.validate()
+
+    def pms_photo(self):
+        content = BytesIO()
+        metadata = PngInfo()
+        metadata.add_text("pms_test_token", self.token)
+        Image.new("RGB", (1, 1), "white").save(content, format="PNG", pnginfo=metadata)
+        return save_file(f"pms-test-{self.token}.png", content.getvalue(), None, None, is_private=1)
+
+    def pms_document(self, **values):
+        photo = self.pms_photo()
+        if "service_person" not in values:
+            values["service_person"] = self.supervisor()[1].name
+        return frappe.get_doc({
+            "doctype": "PMS Visit", "pms_date": nowdate(),
+            "client_name": "", "place": "Test Place", "plant_capacity_kw": 8.5,
+            "site_location_link": "https://maps.example.com/site", "inspection_remarks": "Test inspection",
+            "ac_db_string_inverter": photo.file_url, "panel_image": photo.file_url, "house_image": photo.file_url,
+            **values,
+        })
+
+    def test_pms_project_requirement_status_and_client_autofill(self):
+        project = self.fixture("Project", project_name="PMS Project", customer=self.customer.name,
+                               company=self.company, status="Open")
+        with self.assertRaises(frappe.ValidationError):
+            self.pms_document().insert()
+        with self.assertRaises(frappe.ValidationError):
+            self.pms_document(project=project.name).insert()
+        frappe.db.set_value("Project", project.name, "status", "Completed")
+        visit = self.pms_document(project=project.name).insert()
+        self.assertEqual(visit.client_name, self.customer.customer_name)
+        self.assertEqual(visit.customer, self.customer.name)
+        self.assertEqual(visit.plant_capacity_kw, 8.5)
+        # Repeated service visits must not collide on a blank migration reference.
+        self.pms_document(project=project.name).insert()
+        supervisor = self.user("Project Supervisor")
+        frappe.set_user(supervisor.name)
+        visit = frappe.get_doc("PMS Visit", visit.name)
+        visit.inspection_remarks = "Supervisor update"
+        visit.save()
+        self.assertEqual(visit.reload().inspection_remarks, "Supervisor update")
+
+    def test_pms_customer_or_client_and_employee_validation(self):
+        project = self.fixture("Project", project_name="Customerless PMS Project", company=self.company, status="Completed")
+        customer_visit = self.pms_document(project=project.name, customer=self.customer.name).insert()
+        self.assertFalse(customer_visit.client_name)
+        visit = self.pms_document(project=project.name, client_name="Manual client").insert()
+        self.assertFalse(visit.customer)
+        self.assertEqual(visit.client_name, "Manual client")
+        self.assertEqual(visit.service_person_name, "Site Visit Test")
+        with self.assertRaises(frappe.ValidationError):
+            self.pms_document(project=project.name).insert()
+        with self.assertRaises(frappe.ValidationError):
+            self.pms_document(project=project.name, client_name="Manual client",
+                              service_person=None, service_person_name="Free text").insert()
+        user, employee = self.supervisor()
+        for employee_status, enabled in (("Inactive", 1), ("Active", 0)):
+            frappe.db.set_value("Employee", employee.name, "status", employee_status)
+            frappe.db.set_value("User", user.name, "enabled", enabled)
+            with self.subTest(status=employee_status, enabled=enabled), self.assertRaises(frappe.ValidationError):
+                self.pms_document(project=project.name, client_name="Manual client", service_person=employee.name).insert()
+        no_role = self.user("Sales User")
+        frappe.db.set_value("Employee", employee.name, {"status": "Active", "user_id": no_role.name})
+        with self.assertRaises(frappe.ValidationError):
+            self.pms_document(project=project.name, client_name="Manual client", service_person=employee.name).insert()
+        assigned_user = frappe.db.get_value("Employee", visit.service_person, "user_id")
+        frappe.db.set_value("User", assigned_user, "enabled", 0)
+        visit.inspection_remarks = "Historical assignment kept"
+        visit.save()
+        visit.service_person = None
+        with self.assertRaises(frappe.ValidationError):
+            visit.save()
+
+    def test_legacy_pms_copy_preserves_photos_history_and_project_exception(self):
+        source_file = self.pms_photo()
+        source = frappe._dict({
+            "name": f"_TEST-SV-{self.token}-10/26-01", "pms_date": nowdate(), "service_person_name": "Old technician",
+            "client_name": "Original Client", "place": "Old Place", "plant_capacity_kw": 7.25,
+            "site_location_link": "https://maps.example.com/old", "inspection_remarks": "Historical report",
+            "ac_db_string_inverter": source_file.file_url, "panel_image": source_file.file_url,
+            "house_image": source_file.file_url, "owner": "Administrator", "creation": "2026-10-14 12:54:47",
+            "modified": "2026-10-20 09:18:18", "modified_by": "Administrator",
+        })
+        # The development site intentionally has no legacy DocType. Simulate only
+        # its read side; PMS insertion, File copies and permissions use the real DB.
+        get_all, get_meta, exists = frappe.get_all, frappe.get_meta, frappe.db.exists
+        def legacy_rows(doctype, *args, **kwargs):
+            return [source] if doctype == migrate_pms.SOURCE else get_all(doctype, *args, **kwargs)
+        def legacy_meta(doctype, *args, **kwargs):
+            return get_meta("PMS Visit" if doctype == migrate_pms.SOURCE else doctype, *args, **kwargs)
+        def legacy_exists(doctype, name=None, *args, **kwargs):
+            if doctype == "DocType" and name == migrate_pms.SOURCE:
+                return True
+            return exists(doctype, name, *args, **kwargs)
+        with patch.object(frappe, "get_all", side_effect=legacy_rows), \
+                patch.object(frappe, "get_meta", side_effect=legacy_meta), \
+                patch.object(frappe.db, "exists", side_effect=legacy_exists):
+            self.assertEqual(migrate_pms.migrate()["ready"], 1)
+            self.assertEqual(migrate_pms.migrate(dry_run=False)["copied"], 1)
+            self.assertEqual(migrate_pms.migrate(dry_run=False)["already_copied"], 1)
+        visit = frappe.get_doc("PMS Visit", source.name)
+        self.assertFalse(visit.project)
+        self.assertEqual(visit.client_name, "Original Client")
+        self.assertEqual(visit.service_person_name, "Old technician")
+        self.assertFalse(visit.service_person)
+        self.assertEqual(visit.plant_capacity_kw, 7.25)
+        self.assertEqual(str(visit.creation), source.creation)
+        self.assertEqual(visit.panel_image, source_file.file_url)
+        self.assertFalse(source_file.reload().attached_to_doctype)
+        self.assertTrue(frappe.db.exists("File", {"attached_to_doctype": "PMS Visit", "attached_to_name": visit.name,
+                                                  "file_url": source_file.file_url, "is_private": 1}))
+        visit.inspection_remarks = "Historical report updated"
+        visit.save()
+        # A copied report cannot be used to create more project-less new reports.
+        duplicate = frappe.copy_doc(visit)
+        with self.assertRaises(frappe.ValidationError):
+            duplicate.insert()
+        supervisor = self.user("Project Supervisor")
+        frappe.set_user(supervisor.name)
+        from frappe.core.doctype.file.utils import find_file_by_url
+        self.assertIsNotNone(find_file_by_url(source_file.file_url))
 
 
 def run():
