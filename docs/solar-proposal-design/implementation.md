@@ -26,14 +26,12 @@ As System Manager, open **Wahni Default Settings → Demo**:
 
 Clearing defaults sets an opt-out flag, so later migrations do not recreate them. Install Demo Defaults explicitly resets that flag. The sample catalogue is illustrative: staff must review Item specifications and fill in any missing component definitions.
 
-## Legacy cleanup
+## Installation and existing UAT data
 
-The pre-sync patch archives old package settings, proposal/material rows and Item descriptions in the site's private `backups/wahni-solar-legacy-configuration-v1.json`, with owner-only file permissions. The post-sync patch removes six retired Solar Package columns: `inverter_bom_item`, `basic_bom_item`, `connection_type`, `panel_capacity_min`, `panel_capacity_max`, and `description`. It removes unreferenced old packages and disables referenced ones.
+Fresh installations use the current DocType definitions and install setup directly. One-time development/UAT migration patches and archive/cleanup commands have been retired. Existing site records and private backups are not deleted by this code cleanup.
 
-Existing proposals remain marked **Legacy**, with their saved material quantities, rates and totals. They can still print. Their phase and system metadata are preserved before old package columns are removed. Select a new enabled package, enter the panel wattage and use Regenerate Materials to convert one deliberately. Shared material/charge child tables remain because proposals and Projects use them. Core ERPNext Item and manufacturing BOM records are retained.
-
-Both migration patches are marked `never_skip_patches`; failed archival must stop the migration. The private archive supplements the regular full site backup and is not a substitute for it.
+Existing proposals marked **Legacy** retain their saved material quantities, rates and totals and can still print. Select a new enabled package, enter the panel wattage and use Regenerate Materials to convert one deliberately. Shared material/charge child tables remain because proposals and Projects use them.
 
 ## Validation
 
-The application tests cover bounded rule evaluation, phase conditions, dependencies and cycles, direct overrides, editable panel counts, typed inputs, draft charge recalculation, UOM conversion, saved snapshots, demo cleanup, migration archival and Project/Sales Order compatibility. New proposal valuation costs are not copied as Sales Order selling prices; ERPNext supplies selling prices through its normal pricing flow.
+The application tests cover bounded rule evaluation, phase conditions, dependencies and cycles, direct overrides, editable panel counts, typed inputs, draft charge recalculation, UOM conversion, saved snapshots, demo cleanup, install defaults and Project/Sales Order compatibility. New proposal valuation costs are not copied as Sales Order selling prices; ERPNext supplies selling prices through its normal pricing flow.

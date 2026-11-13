@@ -44,42 +44,11 @@ Open **Site Visit → PMS Visits**. New reports require a **completed Project**.
 
 Document-level roles match Site Visit: System Manager, Sales User, and Project Supervisor can create/edit; Projects User/Manager can read. Users must also have normal permission to select the linked Project (for example, Projects User or another applicable ERPNext role). No ERPNext Project permissions are broadened automatically.
 
-#### Copy production Site Data Collection reports into PMS Visit
+#### Existing UAT reports
 
-**Run on the production site, not the local development site.** Replace `<production-site>` below. Execute these commands inside that server's bench/container; for the local Docker layout, use the `docker compose exec -T frappe bash -c 'cd frappe-bench && ...'` wrapper documented above.
+The one-time development/UAT patches and Site Data Collection copy command have been retired. Fresh installations use the standard PMS Visit schema and need no legacy data-copy step.
 
-1. Put the site into maintenance mode and back up **both database and files**. Deploy this app version using your normal deployment process.
-
-   ```bash
-   bench --site <production-site> set-maintenance-mode on
-   bench --site <production-site> backup --with-files
-   bench --site <production-site> clear-cache
-   bench --site <production-site> migrate
-   ```
-
-2. Preview the copy. This command makes **no changes**. Resolve any reported missing fields, missing image files, or conflicting names first.
-
-   ```bash
-   bench --site <production-site> execute wahni_solar.site_visit.migrate_pms.migrate --kwargs '{"dry_run": 1}'
-   ```
-
-3. If `errors` is empty, apply the copy, then preview again to verify `already_copied` matches `source_total`.
-
-   ```bash
-   bench --site <production-site> execute wahni_solar.site_visit.migrate_pms.migrate --kwargs '{"dry_run": 0}'
-   bench --site <production-site> execute wahni_solar.site_visit.migrate_pms.migrate --kwargs '{"dry_run": 1}'
-   ```
-
-   The copy preserves original record names, Client Name, capacity, values, audit dates, and image URLs/privacy. It creates attachment references for PMS Visit without moving/deleting original files. **Historical copies may have no Project and remain editable without one**; no dummy Project is created. A protected migration reference distinguishes them from new reports. If a Project is linked later, it must be completed and cannot subsequently be cleared. Re-running skips already copied reports, never overwrites them, and does not delete or rename the source records/DocType.
-
-4. Check several PMS reports and their photos. Switch any legacy Web Forms, Client Scripts, Print Formats, and menu links to PMS Visit as appropriate. Existing integrations referencing Site Data Collection are **not** rewritten automatically. Stop using the old entry form after verification to avoid parallel data entry; keep the source records as an archive until you decide otherwise.
-
-   ```bash
-   bench --site <production-site> clear-cache
-   bench --site <production-site> set-maintenance-mode off
-   ```
-
-   Restart web/workers through your normal deployment process if required, then hard-refresh Desk. No production migration is run automatically by app installation or by `bench migrate`.
+Reports already copied on UAT retain their names, values and photos and remain editable without a Project or Employee. Their hidden, immutable `legacy_site_data_collection` reference is retained only for compatibility; new visits cannot set it. If a Project is assigned later, it must be completed and cannot subsequently be cleared. No existing records, files or backup archives are deleted by this code cleanup.
 
 ### Contributing
 

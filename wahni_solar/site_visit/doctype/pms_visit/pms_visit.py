@@ -29,15 +29,12 @@ class PMSVisit(Document):
     def validate(self):
         previous = self.get_doc_before_save()
         legacy = self.get("legacy_site_data_collection")
-        importing = bool(frappe.flags.get("in_legacy_pms_import"))
         if previous and legacy != previous.get("legacy_site_data_collection"):
             frappe.throw(_("The legacy report reference cannot be changed."))
-        if not previous and legacy and not importing:
-            frappe.throw(_("Legacy PMS reports can only be created by the migration command."))
-        historical = bool(legacy and (
-            (importing and not previous)
-            or (previous and previous.get("legacy_site_data_collection") and not previous.project)
-        ))
+        if not previous and legacy:
+            frappe.throw(_("New PMS visits cannot have a legacy report reference."))
+        # Keep already copied UAT reports editable; no new legacy copies are allowed.
+        historical = bool(legacy and previous and not previous.project)
         if not self.project and not historical:
             frappe.throw(_("Project is required for new PMS visits."))
         # Existing maintenance history remains editable if its Project is later
@@ -60,9 +57,6 @@ class PMSVisit(Document):
                 if changed else previous.service_person_name
             )
         else:
-            historical_person = (
-                (legacy and importing and not previous)
-                or (previous and not previous.get("service_person") and previous.get("service_person_name"))
-            )
+            historical_person = previous and not previous.get("service_person") and previous.get("service_person_name")
             if not historical_person or not (self.service_person_name or "").strip():
                 frappe.throw(_("Select an Employee as Service Person Name."))

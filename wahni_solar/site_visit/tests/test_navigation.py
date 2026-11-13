@@ -3,12 +3,6 @@
 import json
 import unittest
 from pathlib import Path
-from unittest.mock import patch
-
-import frappe
-
-from wahni_solar.patches import fix_module_and_workspace_routes as migration
-from wahni_solar.patches import add_site_visit_to_dock as dock_migration
 
 APP = Path(__file__).resolve().parents[2]
 
@@ -40,58 +34,3 @@ class TestNavigation(unittest.TestCase):
         self.assertEqual(len(files), 7)
         for path in files:
             self.assertEqual(json.loads(path.read_text())["module"], "Wahni Solar Monitor")
-
-    def test_masters_module_and_navigation_are_not_migrated(self):
-        with patch.object(migration, "frappe") as fake, patch.object(migration, "rename_doc") as rename:
-            fake.db.get_value.side_effect = ["masters_association", None, None]
-            migration.execute()
-            fake.db.set_value.assert_not_called()
-            rename.assert_not_called()
-
-    def test_app_owned_module_moves_without_deleting_records(self):
-        with patch.object(migration, "frappe") as fake, patch.object(migration, "rename_doc") as rename:
-            fake.db.get_value.side_effect = ["wahni_solar", frappe._dict(module="Site Visit", standard=1)]
-            fake.db.exists.return_value = True
-            fake.get_meta.return_value.has_field.return_value = True
-            migration.execute()
-            self.assertEqual(fake.db.set_value.call_count, 7)
-            fake.delete_doc.assert_not_called()
-            rename.assert_called_once_with(
-                "Workspace", "Site Visit", "Site Visits", force=True,
-                ignore_permissions=True, show_alert=False, rebuild_search=False,
-            )
-
-    def test_already_renamed_workspace_title_is_repaired_idempotently(self):
-        with patch.object(migration, "frappe") as fake, patch.object(migration, "rename_doc") as rename:
-            fake.db.get_value.side_effect = [None, None, frappe._dict(module="Site Visit", standard=1)]
-            migration.execute()
-            rename.assert_not_called()
-            fake.db.set_value.assert_called_once_with(
-                "Workspace", "Site Visits", {"title": "Site Visits", "label": "Site Visits"}, update_modified=False,
-            )
-
-
-class TestVisitDockMigration(unittest.TestCase):
-    def test_fresh_site_uses_app_dock_without_creating_a_site_override(self):
-        with patch.object(dock_migration, "get_dock", return_value=None) as get_dock, \
-                patch.object(dock_migration, "save_site_dock") as save:
-            dock_migration.execute()
-            get_dock.assert_called_once_with("wahni_solar")
-            save.assert_not_called()
-
-    def test_new_entry_preserves_existing_site_order_and_hiding(self):
-        existing = [{"link_type": "Sidebar", "link_to": "Wahni Solar Proposal"},
-                    {"link_type": "Sidebar", "link_to": "Solar Project", "hidden": 1},
-                    {"link_type": "URL", "url": "https://example.com", "title": "Custom"}]
-        with patch.object(dock_migration, "get_dock", return_value=object()), \
-                patch.object(dock_migration, "dock_rows", return_value=list(existing)), \
-                patch.object(dock_migration, "save_site_dock") as save:
-            dock_migration.execute()
-            save.assert_called_once_with("wahni_solar", [existing[0], {"link_type": "Sidebar", "link_to": "Site Visits"}, *existing[1:]])
-
-    def test_existing_visit_entry_is_not_duplicated_or_unhidden(self):
-        with patch.object(dock_migration, "get_dock", return_value=object()), \
-                patch.object(dock_migration, "dock_rows", return_value=[{"link_type": "Sidebar", "link_to": "Site Visits", "hidden": 1}]), \
-                patch.object(dock_migration, "save_site_dock") as save:
-            dock_migration.execute()
-            save.assert_not_called()

@@ -60,11 +60,6 @@ doctype_js = {
 
 after_install = "wahni_solar.solar_project.setup.after_migrate"
 after_migrate = "wahni_solar.solar_project.setup.after_migrate"
-never_skip_patches = [
-    "wahni_solar.patches.archive_legacy_solar_configuration",
-    "wahni_solar.patches.retire_legacy_solar_configuration",
-    "wahni_solar.patches.delete_unused_legacy_solar_configuration",
-]
 
 fixtures = [{"dt": "Role", "filters": [["name", "in", ["Solar Monitor Viewer", "Project Supervisor"]]]}]
 

@@ -5,7 +5,6 @@ bench --site <site> execute wahni_solar.site_visit.tests.test_integration.run
 
 import unittest
 from io import BytesIO
-from unittest.mock import patch
 
 import frappe
 from frappe.utils import nowdate
@@ -14,7 +13,6 @@ from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 
 from wahni_solar.site_visit import api
-from wahni_solar.site_visit import migrate_pms
 from wahni_solar.wahni_solar_proposal.doctype.solar_proposal.solar_proposal import make_project
 
 
@@ -193,7 +191,7 @@ class TestSiteVisitIntegration(unittest.TestCase):
         self.assertEqual(visit.client_name, self.customer.customer_name)
         self.assertEqual(visit.customer, self.customer.name)
         self.assertEqual(visit.plant_capacity_kw, 8.5)
-        # Repeated service visits must not collide on a blank migration reference.
+        # A Project can have multiple maintenance visits.
         self.pms_document(project=project.name).insert()
         supervisor = self.user("Project Supervisor")
         frappe.set_user(supervisor.name)
@@ -233,54 +231,34 @@ class TestSiteVisitIntegration(unittest.TestCase):
         with self.assertRaises(frappe.ValidationError):
             visit.save()
 
-    def test_legacy_pms_copy_preserves_photos_history_and_project_exception(self):
-        source_file = self.pms_photo()
-        source = frappe._dict({
-            "name": f"_TEST-SV-{self.token}-10/26-01", "pms_date": nowdate(), "service_person_name": "Old technician",
-            "client_name": "Original Client", "place": "Old Place", "plant_capacity_kw": 7.25,
-            "site_location_link": "https://maps.example.com/old", "inspection_remarks": "Historical report",
-            "ac_db_string_inverter": source_file.file_url, "panel_image": source_file.file_url,
-            "house_image": source_file.file_url, "owner": "Administrator", "creation": "2026-10-14 12:54:47",
-            "modified": "2026-10-20 09:18:18", "modified_by": "Administrator",
-        })
-        # The development site intentionally has no legacy DocType. Simulate only
-        # its read side; PMS insertion, File copies and permissions use the real DB.
-        get_all, get_meta, exists = frappe.get_all, frappe.get_meta, frappe.db.exists
-        def legacy_rows(doctype, *args, **kwargs):
-            return [source] if doctype == migrate_pms.SOURCE else get_all(doctype, *args, **kwargs)
-        def legacy_meta(doctype, *args, **kwargs):
-            return get_meta("PMS Visit" if doctype == migrate_pms.SOURCE else doctype, *args, **kwargs)
-        def legacy_exists(doctype, name=None, *args, **kwargs):
-            if doctype == "DocType" and name == migrate_pms.SOURCE:
-                return True
-            return exists(doctype, name, *args, **kwargs)
-        with patch.object(frappe, "get_all", side_effect=legacy_rows), \
-                patch.object(frappe, "get_meta", side_effect=legacy_meta), \
-                patch.object(frappe.db, "exists", side_effect=legacy_exists):
-            self.assertEqual(migrate_pms.migrate()["ready"], 1)
-            self.assertEqual(migrate_pms.migrate(dry_run=False)["copied"], 1)
-            self.assertEqual(migrate_pms.migrate(dry_run=False)["already_copied"], 1)
-        visit = frappe.get_doc("PMS Visit", source.name)
+    def test_existing_uat_pms_remains_editable_without_project_or_employee(self):
+        # Represent an already copied UAT report, without running import code.
+        visit = self.pms_document(client_name="Original Client", service_person=None,
+                                  service_person_name="Old technician", legacy_site_data_collection=f"UAT-{self.token}")
+        visit.name = f"_TEST-SV-{self.token}-pms"
+        visit.db_insert()
+        visit = frappe.get_doc("PMS Visit", visit.name)
         self.assertFalse(visit.project)
-        self.assertEqual(visit.client_name, "Original Client")
-        self.assertEqual(visit.service_person_name, "Old technician")
         self.assertFalse(visit.service_person)
-        self.assertEqual(visit.plant_capacity_kw, 7.25)
-        self.assertEqual(str(visit.creation), source.creation)
-        self.assertEqual(visit.panel_image, source_file.file_url)
-        self.assertFalse(source_file.reload().attached_to_doctype)
-        self.assertTrue(frappe.db.exists("File", {"attached_to_doctype": "PMS Visit", "attached_to_name": visit.name,
-                                                  "file_url": source_file.file_url, "is_private": 1}))
+        photo_url = visit.panel_image
+        frappe.db.set_value("File", {"file_url": photo_url}, {
+            "attached_to_doctype": "PMS Visit", "attached_to_name": visit.name, "attached_to_field": "panel_image",
+        })
+        supervisor = self.user("Project Supervisor")
+        frappe.set_user(supervisor.name)
         visit.inspection_remarks = "Historical report updated"
         visit.save()
+        self.assertEqual(visit.reload().service_person_name, "Old technician")
+        self.assertEqual(visit.client_name, "Original Client")
+        self.assertEqual(visit.panel_image, photo_url)
+        self.assertTrue(frappe.db.exists("File", {"attached_to_doctype": "PMS Visit", "attached_to_name": visit.name,
+                                                  "file_url": photo_url, "is_private": 1}))
         # A copied report cannot be used to create more project-less new reports.
         duplicate = frappe.copy_doc(visit)
         with self.assertRaises(frappe.ValidationError):
             duplicate.insert()
-        supervisor = self.user("Project Supervisor")
-        frappe.set_user(supervisor.name)
         from frappe.core.doctype.file.utils import find_file_by_url
-        self.assertIsNotNone(find_file_by_url(source_file.file_url))
+        self.assertIsNotNone(find_file_by_url(photo_url))
 
 
 def run():
