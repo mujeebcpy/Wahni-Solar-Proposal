@@ -1,4 +1,5 @@
 import json
+import re
 import unittest
 from inspect import unwrap
 from pathlib import Path
@@ -10,6 +11,9 @@ from wahni_solar.site_visit.doctype.pms_visit import pms_visit
 
 
 class Record(frappe._dict):
+    def __init__(self, **values):
+        super().__init__({"status": "Assigned", **values})
+
     def get_doc_before_save(self):
         return self.get("previous")
 
@@ -30,6 +34,58 @@ class TestPMSVisit(unittest.TestCase):
 
     def valid_record(self, **values):
         return Record(project="PROJECT", customer="CUSTOMER", service_person="EMPLOYEE", **values)
+
+    def completed_record(self, **values):
+        fields = {field: "Present" for field in pms_visit.COMPLETION_FIELDS}
+        fields.update({"plant_capacity_kw": 5, "status": "Completed", **values})
+        return self.valid_record(**fields)
+
+    def test_assignment_and_progress_allow_incomplete_inspection(self):
+        for status in ("Assigned", "In Progress"):
+            with self.subTest(status=status):
+                pms_visit.PMSVisit.validate(self.valid_record(status=status))
+        self.frappe.only_for.assert_not_called()
+
+    def test_completion_requires_every_inspection_field(self):
+        for field, label in pms_visit.COMPLETION_FIELDS.items():
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, re.escape(label)):
+                pms_visit.PMSVisit.validate(self.completed_record(**{field: None}))
+
+    def test_completion_rejects_whitespace_details(self):
+        with self.assertRaisesRegex(ValueError, "Inspection Remarks"):
+            pms_visit.PMSVisit.validate(self.completed_record(inspection_remarks="  \n "))
+
+    def test_complete_report_can_be_saved(self):
+        pms_visit.PMSVisit.validate(self.completed_record())
+        self.frappe.only_for.assert_called_once_with(("System Manager", "Project Supervisor"))
+
+    def test_completion_checks_role(self):
+        self.frappe.only_for.side_effect = frappe.PermissionError
+        with self.assertRaises(frappe.PermissionError):
+            pms_visit.PMSVisit.validate(self.completed_record())
+
+    def test_completion_rechecks_employee_eligibility(self):
+        self.eligible.return_value = False
+        previous = self.valid_record(service_person_name="Technician")
+        with self.assertRaisesRegex(ValueError, "Project Supervisor role"):
+            pms_visit.PMSVisit.validate(self.completed_record(previous=previous))
+
+    def test_completed_history_preserves_inactive_employee(self):
+        self.eligible.return_value = False
+        previous = self.completed_record(service_person_name="Technician")
+        pms_visit.PMSVisit.validate(self.completed_record(previous=previous))
+        self.eligible.assert_not_called()
+        self.frappe.only_for.assert_not_called()
+
+    def test_completed_report_cannot_lose_required_details(self):
+        previous = self.completed_record()
+        with self.assertRaisesRegex(ValueError, "Panel Image"):
+            pms_visit.PMSVisit.validate(self.completed_record(previous=previous, panel_image=None))
+
+    def test_invalid_status_is_rejected(self):
+        for status in ("Draft", "Other", None):
+            with self.subTest(status=status), self.assertRaisesRegex(ValueError, "valid PMS Visit status"):
+                pms_visit.PMSVisit.validate(self.valid_record(status=status))
 
     def test_new_visit_requires_project(self):
         with self.assertRaisesRegex(ValueError, "Project is required"):
@@ -136,6 +192,15 @@ class TestPMSVisit(unittest.TestCase):
         folder = Path(__file__).parent
         schema = json.loads((folder / "pms_visit.json").read_text())
         fields = {df["fieldname"]: df for df in schema["fields"]}
+        self.assertEqual(set(schema["field_order"]), set(fields))
+        self.assertEqual(len(schema["field_order"]), len(fields))
+        self.assertEqual(fields["status"]["default"], "Assigned")
+        self.assertEqual(fields["status"]["options"], "Assigned\nIn Progress\nCompleted")
+        self.assertTrue(fields["status"]["no_copy"])
+        self.assertEqual([state["title"] for state in schema["states"]], ["Assigned", "In Progress", "Completed"])
+        for field in pms_visit.COMPLETION_FIELDS:
+            self.assertFalse(fields[field].get("reqd"))
+            self.assertEqual(fields[field]["mandatory_depends_on"], "eval:doc.status == 'Completed'")
         self.assertEqual(fields["plant_capacity_kw"]["fieldtype"], "Float")
         self.assertFalse(fields["client_name"].get("reqd"))
         self.assertEqual(fields["client_name"]["depends_on"], "eval:!doc.customer")

@@ -35,15 +35,18 @@ class SiteVisitTestCase(unittest.TestCase):
             translation = patch.object(module, "_", side_effect=lambda message: message)
             translation.start()
             self.addCleanup(translation.stop)
+        eligible = patch.object(site_visit, "is_eligible_supervisor", return_value=True)
+        eligible.start()
+        self.addCleanup(eligible.stop)
 
 
 class TestSiteVisit(SiteVisitTestCase):
     def record(self, **values):
-        return Record({"solar_proposal": "P", "status": "Draft", "site_visit_by": None,
+        return Record({"solar_proposal": "P", "status": "Assigned", "site_visit_by": "EMP",
                        "visit_date": None, "loan_percentage": 0, **values})
 
     def test_completion_requires_a_date_and_supervisor(self):
-        for values in ({}, {"visit_date": "2026-11-13"}, {"site_visit_by": "EMP"}):
+        for values in ({"site_visit_by": None}, {"visit_date": "2026-11-13", "site_visit_by": None}, {"site_visit_by": "EMP"}):
             with self.subTest(values=values), patch.object(site_visit, "frappe") as fake:
                 fake.throw.side_effect = ValueError
                 with self.assertRaises(ValueError):
@@ -83,6 +86,28 @@ class TestSiteVisit(SiteVisitTestCase):
             fake.throw.side_effect = ValueError
             with self.assertRaises(ValueError):
                 site_visit.SiteVisit.validate(self.record(site_visit_by="EMP"))
+
+    def test_assignment_can_be_saved_without_visit_details(self):
+        for status in ("Assigned", "In Progress"):
+            with self.subTest(status=status):
+                site_visit.SiteVisit.validate(self.record(status=status))
+
+    def test_new_assignment_requires_employee(self):
+        with patch.object(site_visit, "frappe") as fake:
+            fake.throw.side_effect = ValueError
+            with self.assertRaises(ValueError):
+                site_visit.SiteVisit.validate(self.record(site_visit_by=None))
+
+    def test_existing_unassigned_report_can_be_saved(self):
+        previous = self.record(site_visit_by=None)
+        site_visit.SiteVisit.validate(self.record(previous=previous, site_visit_by=None))
+
+    def test_draft_and_unknown_status_are_rejected(self):
+        for status in ("Draft", "Other", None):
+            with self.subTest(status=status), patch.object(site_visit, "frappe") as fake:
+                fake.throw.side_effect = ValueError
+                with self.assertRaises(ValueError):
+                    site_visit.SiteVisit.validate(self.record(status=status))
 
     def test_proposal_cannot_be_changed(self):
         with patch.object(site_visit, "frappe") as fake:
@@ -127,6 +152,9 @@ class TestSiteVisit(SiteVisitTestCase):
         self.assertEqual(len(schema["field_order"]), len(fields))
         self.assertEqual(fields["solar_proposal"]["unique"], 1)
         self.assertEqual(fields["status"]["permlevel"], 1)
+        self.assertEqual(fields["status"]["default"], "Assigned")
+        self.assertEqual(fields["status"]["options"], "Assigned\nIn Progress\nCompleted")
+        self.assertEqual(fields["visit_date"]["mandatory_depends_on"], "eval:doc.status == 'Completed'")
         for drawing in api.DRAWING_FIELDS:
             self.assertEqual(fields[drawing]["fieldtype"], "Attach")
 
@@ -229,7 +257,7 @@ class TestProjectSiteVisit(SiteVisitTestCase):
             self.assertFalse(doc.custom_site_visit)
 
     def test_incomplete_visit_is_linked_with_warning_completed_without_warning(self):
-        for status in ("Draft", "In Progress", "Completed"):
+        for status in ("Assigned", "In Progress", "Completed"):
             doc = Record(custom_solar_proposal="P")
             visit = Record(name="SV", solar_proposal="P", status=status)
             with self.subTest(status=status), patch.object(api, "get_proposal_visit", return_value=visit), \
@@ -267,7 +295,7 @@ class TestProjectSiteVisit(SiteVisitTestCase):
             self.assertEqual(fake.msgprint.call_count, 1)
 
     def test_mapping_retains_customer_bom_cost_plan_and_does_not_save_relationships(self):
-        for status in (None, "Draft", "Completed"):
+        for status in (None, "Assigned", "Completed"):
             proposal = MagicMock()
             proposal.name = "P"
             proposal.package_name = "PACKAGE"

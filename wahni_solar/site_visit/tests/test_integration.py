@@ -13,6 +13,7 @@ from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 
 from wahni_solar.site_visit import api
+from wahni_solar.site_visit.doctype.pms_visit.pms_visit import COMPLETION_FIELDS
 from wahni_solar.wahni_solar_proposal.doctype.solar_proposal.solar_proposal import make_project
 
 
@@ -33,6 +34,7 @@ class TestSiteVisitIntegration(unittest.TestCase):
                                  mobile_no="9000000000", custom_kseb_consumer_no="001234", status="Lead")
         self.customer = self.fixture("Customer", customer_name="Site Visit Test", customer_type="Individual", lead_name=self.lead.name)
         self.proposal = self.new_proposal()
+        self.assigned_employee = self.supervisor()[1]
 
     def fixture(self, doctype, **values):
         doc = frappe.get_doc({"doctype": doctype, "name": f"_TEST-SV-{self.token}-{frappe.generate_hash(length=6)}", **values})
@@ -61,6 +63,11 @@ class TestSiteVisitIntegration(unittest.TestCase):
                                 company=self.company, status="Active", user_id=user.name)
         return user, employee
 
+    def assigned_site_visit(self):
+        visit = api.make_site_visit(self.proposal.name)
+        visit.site_visit_by = self.assigned_employee.name
+        return visit
+
     def test_schema_role_and_navigation(self):
         self.assertEqual(frappe.get_meta("Site Visit").module, "Site Visit")
         self.assertTrue(frappe.db.exists("Module Def", "Site Visit"))
@@ -77,7 +84,7 @@ class TestSiteVisitIntegration(unittest.TestCase):
         self.assertIn("custom_site_visit", [d.fieldname for d in frappe.get_meta("Project").fields])
 
     def test_autofill_unique_report_and_snapshot_preservation(self):
-        visit = api.make_site_visit(self.proposal.name)
+        visit = self.assigned_site_visit()
         self.assertTrue(visit.is_new())
         self.assertEqual((visit.lead, visit.customer), (self.lead.name, self.customer.name))
         self.assertEqual(visit.consumer_number, "001234")
@@ -100,7 +107,7 @@ class TestSiteVisitIntegration(unittest.TestCase):
         self.assertFalse(missing.custom_site_visit)
         self.assertTrue(frappe.message_log)
         missing.insert()
-        visit = api.make_site_visit(self.proposal.name).insert()
+        visit = self.assigned_site_visit().insert()
         frappe.clear_messages()
         project = make_project(self.proposal.name)
         self.assertEqual(project.custom_site_visit, visit.name)
@@ -114,7 +121,7 @@ class TestSiteVisitIntegration(unittest.TestCase):
 
     def test_completed_visit_maps_without_warning(self):
         user, employee = self.supervisor()
-        visit = api.make_site_visit(self.proposal.name).insert()
+        visit = self.assigned_site_visit().insert()
         frappe.set_user(user.name)
         visit = frappe.get_doc("Site Visit", visit.name)
         visit.update({"status": "Completed", "site_visit_by": employee.name, "visit_date": nowdate()})
@@ -126,7 +133,7 @@ class TestSiteVisitIntegration(unittest.TestCase):
         self.assertFalse(frappe.message_log)
 
     def test_cross_proposal_link_is_rejected_on_project_insert(self):
-        visit = api.make_site_visit(self.proposal.name).insert()
+        visit = self.assigned_site_visit().insert()
         other = self.new_proposal()
         project = make_project(other.name)
         project.custom_site_visit = visit.name
@@ -149,8 +156,8 @@ class TestSiteVisitIntegration(unittest.TestCase):
     def test_sales_can_prepare_but_not_edit_technical_fields(self):
         sales = self.user("Sales User")
         frappe.set_user(sales.name)
-        visit = api.make_site_visit(self.proposal.name).insert()
-        self.assertEqual(visit.status, "Draft")
+        visit = self.assigned_site_visit().insert()
+        self.assertEqual(visit.status, "Assigned")
         visit.customer_name = "Sales preparation"
         visit.roof_type = "Unauthorized technical edit"
         visit.save()
@@ -159,6 +166,34 @@ class TestSiteVisitIntegration(unittest.TestCase):
         visit.status = "Completed"
         with self.assertRaises(frappe.PermissionError):
             visit.validate()
+
+    def test_site_visit_assignment_can_be_saved_before_actual_visit(self):
+        visit = self.assigned_site_visit().insert()
+        self.assertEqual(visit.status, "Assigned")
+        self.assertFalse(visit.visit_date)
+        self.assertEqual(visit.owner, "Administrator")
+        assigned_user = frappe.db.get_value("Employee", self.assigned_employee.name, "user_id")
+        frappe.set_user(assigned_user)
+        self.assertIn(visit.name, frappe.get_list(
+            "Site Visit", filters={"site_visit_by": self.assigned_employee.name}, pluck="name"
+        ))
+        visit.reload()
+        visit.status = "In Progress"
+        visit.roof_type = "Sheet"
+        visit.save()
+        visit.status = "Completed"
+        with self.assertRaises(frappe.ValidationError):
+            visit.save()
+        visit.reload()
+        visit.status = "Completed"
+        visit.visit_date = nowdate()
+        visit.save()
+        self.assertEqual(visit.reload().status, "Completed")
+
+    def test_new_site_visit_requires_an_assignee(self):
+        visit = api.make_site_visit(self.proposal.name)
+        with self.assertRaises(frappe.ValidationError):
+            visit.insert()
 
     def pms_photo(self):
         content = BytesIO()
@@ -172,12 +207,57 @@ class TestSiteVisitIntegration(unittest.TestCase):
         if "service_person" not in values:
             values["service_person"] = self.supervisor()[1].name
         return frappe.get_doc({
-            "doctype": "PMS Visit", "pms_date": nowdate(),
+            "doctype": "PMS Visit", "status": "Completed", "pms_date": nowdate(),
             "client_name": "", "place": "Test Place", "plant_capacity_kw": 8.5,
             "site_location_link": "https://maps.example.com/site", "inspection_remarks": "Test inspection",
             "ac_db_string_inverter": photo.file_url, "panel_image": photo.file_url, "house_image": photo.file_url,
             **values,
         })
+
+    def test_pms_assignment_can_be_saved_and_completed_by_supervisor(self):
+        user, employee = self.supervisor()
+        project = self.fixture("Project", project_name="Assigned PMS Project", customer=self.customer.name,
+                               company=self.company, status="Completed")
+        visit = frappe.get_doc({
+            "doctype": "PMS Visit", "project": project.name, "service_person": employee.name,
+        }).insert()
+        self.assertEqual(visit.status, "Assigned")
+        self.assertEqual(visit.customer, self.customer.name)
+        self.assertEqual(visit.owner, "Administrator")
+        self.assertFalse(visit.pms_date)
+        self.assertFalse(visit.panel_image)
+        complete = self.pms_document(project=project.name, service_person=employee.name)
+        frappe.set_user(user.name)
+        self.assertIn(visit.name, frappe.get_list(
+            "PMS Visit", filters={"service_person": employee.name}, pluck="name"
+        ))
+        visit.reload()
+        visit.status = "In Progress"
+        visit.place = "Site location"
+        visit.save()
+        visit.status = "Completed"
+        with self.assertRaises(frappe.ValidationError):
+            visit.save()
+        visit.reload()
+        visit.status = "Completed"
+        visit.update({field: complete.get(field) for field in COMPLETION_FIELDS})
+        visit.save()
+        self.assertEqual(visit.reload().status, "Completed")
+
+    def test_sales_can_assign_pms_but_cannot_complete_it(self):
+        project = self.fixture("Project", project_name="Sales PMS Project", customer=self.customer.name,
+                               company=self.company, status="Completed")
+        sales = self.user("Sales User")
+        complete = self.pms_document(project=project.name, service_person=self.assigned_employee.name)
+        frappe.set_user(sales.name)
+        visit = frappe.get_doc({
+            "doctype": "PMS Visit", "project": project.name, "service_person": self.assigned_employee.name,
+        }).insert()
+        self.assertEqual(visit.status, "Assigned")
+        visit.update({field: complete.get(field) for field in COMPLETION_FIELDS})
+        visit.status = "Completed"
+        with self.assertRaises(frappe.PermissionError):
+            visit.save()
 
     def test_pms_project_requirement_status_and_client_autofill(self):
         project = self.fixture("Project", project_name="PMS Project", customer=self.customer.name,

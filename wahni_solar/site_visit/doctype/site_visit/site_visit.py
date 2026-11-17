@@ -25,7 +25,7 @@ class SiteVisit(Document):
         previous = self.get_doc_before_save()
         if previous and previous.solar_proposal != self.solar_proposal:
             frappe.throw(_("The Solar Proposal cannot be changed on an existing Site Visit."))
-        if self.status not in ("Draft", "In Progress", "Completed"):
+        if self.status not in ("Assigned", "In Progress", "Completed"):
             frappe.throw(_("Choose a valid Site Visit status."))
         completing = self.status == "Completed" and (not previous or previous.status != "Completed")
         if completing:
@@ -33,6 +33,8 @@ class SiteVisit(Document):
         if self.status == "Completed":
             if not self.visit_date or not self.site_visit_by:
                 frappe.throw(_("Visit Date and Site Visit By are required to complete the Site Visit."))
+        if not previous and not self.site_visit_by:
+            frappe.throw(_("Select an Employee in Site Visit By to assign the Site Visit."))
         # Do not invalidate a historical assignment when an employee leaves.
         if self.site_visit_by and (not previous or previous.site_visit_by != self.site_visit_by or completing):
             if not is_eligible_supervisor(self.site_visit_by):

@@ -37,9 +37,9 @@
   {"fieldname": "lead_owner", "fieldtype": "Link", "label": "Lead Owner", "options": "User", "read_only": 1},
   {"fieldname": "lead_source", "fieldtype": "Link", "label": "Lead Source", "options": "Lead Source", "read_only": 1},
   {"fieldname": "visit_column", "fieldtype": "Column Break"},
-  {"fieldname": "site_visit_by", "fieldtype": "Link", "label": "Site Visit By", "options": "Employee", "in_list_view": 1, "in_standard_filter": 1, "description": "Active Employee whose enabled User has the Project Supervisor role."},
-  {"fieldname": "visit_date", "fieldtype": "Date", "label": "Visit Date", "in_list_view": 1},
-  {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Draft\nIn Progress\nCompleted", "default": "Draft", "reqd": 1, "permlevel": 1, "in_list_view": 1, "in_standard_filter": 1, "no_copy": 1},
+  {"fieldname": "site_visit_by", "fieldtype": "Link", "label": "Site Visit By", "options": "Employee", "mandatory_depends_on": "eval:doc.__islocal || doc.status == 'Completed'", "in_list_view": 1, "in_standard_filter": 1, "description": "Assigned supervisor: an active Employee whose enabled User has the Project Supervisor role."},
+  {"fieldname": "visit_date", "fieldtype": "Date", "label": "Visit Date", "mandatory_depends_on": "eval:doc.status == 'Completed'", "in_list_view": 1},
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Assigned\nIn Progress\nCompleted", "default": "Assigned", "reqd": 1, "permlevel": 1, "in_list_view": 1, "in_standard_filter": 1, "no_copy": 1},
   {"fieldname": "basic_information", "fieldtype": "Section Break", "label": "Basic Information"},
   {"fieldname": "customer_name", "fieldtype": "Data", "label": "Customer Name", "reqd": 1, "in_list_view": 1},
   {"fieldname": "contact_number", "fieldtype": "Data", "label": "Contact Number", "options": "Phone"},
@@ -127,7 +127,7 @@
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [
-  {"title": "Draft", "color": "Gray"},
+  {"title": "Assigned", "color": "Blue"},
   {"title": "In Progress", "color": "Orange"},
   {"title": "Completed", "color": "Green"}
  ],

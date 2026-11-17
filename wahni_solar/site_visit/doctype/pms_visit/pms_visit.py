@@ -4,7 +4,22 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
-from wahni_solar.site_visit.api import is_eligible_supervisor
+from wahni_solar.site_visit.api import SUPERVISOR_ROLE, is_eligible_supervisor
+
+COMPLETION_FIELDS = {
+    "pms_date": "PMS Date",
+    "place": "Place",
+    "plant_capacity_kw": "Plant Capacity (kW)",
+    "site_location_link": "Site Location Link",
+    "ac_db_string_inverter": "AC DB and String Inverter",
+    "panel_image": "Panel Image",
+    "house_image": "House Image",
+    "inspection_remarks": "Inspection Remarks",
+}
+
+
+def missing_completion_fields(doc):
+    return [label for field, label in COMPLETION_FIELDS.items() if not str(doc.get(field) or "").strip()]
 
 
 def project_values(project):
@@ -28,6 +43,17 @@ def get_project_values(project):
 class PMSVisit(Document):
     def validate(self):
         previous = self.get_doc_before_save()
+        if self.status not in ("Assigned", "In Progress", "Completed"):
+            frappe.throw(_("Choose a valid PMS Visit status."))
+        completing = self.status == "Completed" and (not previous or previous.status != "Completed")
+        if completing:
+            frappe.only_for(("System Manager", SUPERVISOR_ROLE))
+        if self.status == "Completed":
+            missing = missing_completion_fields(self)
+            if missing:
+                frappe.throw(_("Complete the following fields before completing the PMS Visit: {0}").format(
+                    ", ".join(_(label) for label in missing)
+                ))
         legacy = self.get("legacy_site_data_collection")
         if previous and legacy != previous.get("legacy_site_data_collection"):
             frappe.throw(_("The legacy report reference cannot be changed."))
@@ -50,7 +76,7 @@ class PMSVisit(Document):
 
         if self.get("service_person"):
             changed = not previous or previous.get("service_person") != self.service_person
-            if changed and not is_eligible_supervisor(self.service_person):
+            if (changed or completing) and not is_eligible_supervisor(self.service_person):
                 frappe.throw(_("Service Person Name must be an active Employee whose enabled User has the Project Supervisor role."))
             self.service_person_name = (
                 frappe.db.get_value("Employee", self.service_person, "employee_name")
