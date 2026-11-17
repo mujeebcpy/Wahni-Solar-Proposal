@@ -6,7 +6,7 @@ from frappe.contacts.doctype.address.address import get_default_address
 from frappe.contacts.doctype.contact.contact import get_default_contact
 from frappe.utils import cint
 
-SUPERVISOR_ROLE = "Project Supervisor"
+from wahni_solar.field_portal.access import SUPERVISOR_ROLE, is_restricted
 DRAWING_FIELDS = ("building_outline", "panel_layout", "db_layout")
 
 
@@ -18,9 +18,28 @@ def get_proposal_visit(proposal):
     )
 
 
-def proposal_defaults(proposal):
+def can_snapshot_proposal(proposal, user=None):
+    """Proposal readers, or supervisors who may create visits, may take a visit snapshot.
+
+    Supervisors have no Solar Proposal access; they receive only the fields copied
+    into the Site Visit, never the proposal's pricing or the party record.
+    """
+    if proposal.has_permission("read", user=user):
+        return True
+    return SUPERVISOR_ROLE in frappe.get_roles(user) and frappe.has_permission("Site Visit", "create", user=user)
+
+
+def proposal_snapshot(proposal_name):
+    proposal = frappe.get_doc("Solar Proposal", proposal_name)
+    if not can_snapshot_proposal(proposal):
+        frappe.throw(_("Not permitted to use this Solar Proposal."), frappe.PermissionError)
+    return proposal_defaults(proposal, check_permission=False)
+
+
+def proposal_defaults(proposal, check_permission=True):
     """Read the party only after checking access to its source proposal."""
-    proposal.check_permission("read")
+    if check_permission:
+        proposal.check_permission("read")
     party = frappe.get_doc(proposal.proposal_to, proposal.party)
     values = {
         "solar_proposal": proposal.name,
@@ -76,15 +95,18 @@ def proposal_defaults(proposal):
 def make_site_visit(source_name):
     """Open the existing report, or return an unsaved snapshot (never insert here)."""
     proposal = frappe.get_doc("Solar Proposal", source_name)
-    proposal.check_permission("read")
+    if not can_snapshot_proposal(proposal):
+        frappe.throw(_("Not permitted to use this Solar Proposal."), frappe.PermissionError)
     existing = get_proposal_visit(source_name)
     if existing:
         visit = frappe.get_doc("Site Visit", existing.name)
-        visit.check_permission("read")
+        if not visit.has_permission("read"):
+            # Uniqueness makes existence unavoidable; do not reveal whose report it is.
+            frappe.throw(_("A Site Visit already exists for this Solar Proposal."), frappe.DuplicateEntryError)
         return visit
     visit = frappe.new_doc("Site Visit")
     visit.check_permission("create")
-    visit.update(proposal_defaults(proposal))
+    visit.update(proposal_defaults(proposal, check_permission=False))
     return visit
 
 
@@ -116,8 +138,40 @@ def supervisor_query(doctype, txt, searchfield, start, page_len, filters):
         .join(role).on((role.parent == user.name) & (role.parenttype == "User") & (role.parentfield == "roles"))
         .select(employee.name, employee.employee_name)
         .where((employee.status == "Active") & (user.enabled == 1) & (role.role == SUPERVISOR_ROLE))
+        .where(employee.user_id == frappe.session.user if is_restricted() else employee.name.isnotnull())
         .where(employee.name.like(f"%{txt}%") | employee.employee_name.like(f"%{txt}%"))
         .orderby(employee.employee_name)
+        .offset(max(0, cint(start)))
+        .limit(min(100, max(1, cint(page_len))))
+        .run()
+    )
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def proposal_query(doctype, txt, searchfield, start, page_len, filters):
+    """Proposals still without a Site Visit, as (name, customer) pairs only."""
+    if not frappe.has_permission("Site Visit", "create"):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    if frappe.has_permission("Solar Proposal", "read"):
+        # Readers keep their own proposal permissions; an existing report is opened instead.
+        return frappe.get_list(
+            "Solar Proposal", fields=["name", "customer_name"],
+            or_filters=[["name", "like", f"%{txt}%"], ["customer_name", "like", f"%{txt}%"]],
+            order_by="modified desc", limit_start=max(0, cint(start)),
+            limit_page_length=min(100, max(1, cint(page_len))), as_list=True,
+        )
+    if SUPERVISOR_ROLE not in frappe.get_roles():
+        return []
+    proposal = frappe.qb.DocType("Solar Proposal")
+    visit = frappe.qb.DocType("Site Visit")
+    return (
+        frappe.qb.from_(proposal)
+        .left_join(visit).on(visit.solar_proposal == proposal.name)
+        .select(proposal.name, proposal.customer_name)
+        .where(visit.name.isnull())
+        .where(proposal.name.like(f"%{txt}%") | proposal.customer_name.like(f"%{txt}%"))
+        .orderby(proposal.modified, order=frappe.qb.desc)
         .offset(max(0, cint(start)))
         .limit(min(100, max(1, cint(page_len))))
         .run()

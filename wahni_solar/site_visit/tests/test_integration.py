@@ -120,11 +120,11 @@ class TestSiteVisitIntegration(unittest.TestCase):
         self.assertEqual(missing.custom_site_visit, visit.name)
 
     def test_completed_visit_maps_without_warning(self):
-        user, employee = self.supervisor()
         visit = self.assigned_site_visit().insert()
-        frappe.set_user(user.name)
+        # Only the assignee (or the office) may work on a visit.
+        frappe.set_user(frappe.db.get_value("Employee", self.assigned_employee.name, "user_id"))
         visit = frappe.get_doc("Site Visit", visit.name)
-        visit.update({"status": "Completed", "site_visit_by": employee.name, "visit_date": nowdate()})
+        visit.update({"status": "Completed", "visit_date": nowdate()})
         visit.save()
         frappe.set_user("Administrator")
         frappe.clear_messages()
@@ -273,12 +273,12 @@ class TestSiteVisitIntegration(unittest.TestCase):
         self.assertEqual(visit.plant_capacity_kw, 8.5)
         # A Project can have multiple maintenance visits.
         self.pms_document(project=project.name).insert()
-        supervisor = self.user("Project Supervisor")
-        frappe.set_user(supervisor.name)
+        # Completed reports are locked for supervisors; the office may still correct them.
+        frappe.set_user(self.user("Projects Manager").name)
         visit = frappe.get_doc("PMS Visit", visit.name)
-        visit.inspection_remarks = "Supervisor update"
+        visit.inspection_remarks = "Office update"
         visit.save()
-        self.assertEqual(visit.reload().inspection_remarks, "Supervisor update")
+        self.assertEqual(visit.reload().inspection_remarks, "Office update")
 
     def test_pms_customer_or_client_and_employee_validation(self):
         project = self.fixture("Project", project_name="Customerless PMS Project", company=self.company, status="Completed")
@@ -324,8 +324,8 @@ class TestSiteVisitIntegration(unittest.TestCase):
         frappe.db.set_value("File", {"file_url": photo_url}, {
             "attached_to_doctype": "PMS Visit", "attached_to_name": visit.name, "attached_to_field": "panel_image",
         })
-        supervisor = self.user("Project Supervisor")
-        frappe.set_user(supervisor.name)
+        # Completed historical reports stay editable by the office.
+        frappe.set_user(self.user("Projects Manager").name)
         visit.inspection_remarks = "Historical report updated"
         visit.save()
         self.assertEqual(visit.reload().service_person_name, "Old technician")

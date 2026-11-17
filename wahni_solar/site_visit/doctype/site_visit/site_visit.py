@@ -5,31 +5,32 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
 
+from wahni_solar.field_portal.access import COMPLETION_ROLES, enforce_assignment
 from wahni_solar.site_visit.api import (
     DRAWING_FIELDS,
     SUPERVISOR_ROLE,
     is_eligible_supervisor,
-    proposal_defaults,
+    proposal_snapshot,
 )
 
 
 class SiteVisit(Document):
     def before_validate(self):
         if self.is_new() and self.solar_proposal:
-            proposal = frappe.get_doc("Solar Proposal", self.solar_proposal)
-            for field, value in proposal_defaults(proposal).items():
+            for field, value in proposal_snapshot(self.solar_proposal).items():
                 if not self.get(field):
                     self.set(field, value)
 
     def validate(self):
         previous = self.get_doc_before_save()
+        enforce_assignment(self, previous)
         if previous and previous.solar_proposal != self.solar_proposal:
             frappe.throw(_("The Solar Proposal cannot be changed on an existing Site Visit."))
         if self.status not in ("Assigned", "In Progress", "Completed"):
             frappe.throw(_("Choose a valid Site Visit status."))
         completing = self.status == "Completed" and (not previous or previous.status != "Completed")
         if completing:
-            frappe.only_for(("System Manager", SUPERVISOR_ROLE))
+            frappe.only_for(COMPLETION_ROLES)
         if self.status == "Completed":
             if not self.visit_date or not self.site_visit_by:
                 frappe.throw(_("Visit Date and Site Visit By are required to complete the Site Visit."))

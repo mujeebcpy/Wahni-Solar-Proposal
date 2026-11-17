@@ -4,6 +4,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from wahni_solar.field_portal.access import COMPLETION_ROLES, enforce_assignment
 from wahni_solar.site_visit.api import SUPERVISOR_ROLE, is_eligible_supervisor
 
 COMPLETION_FIELDS = {
@@ -43,11 +44,12 @@ def get_project_values(project):
 class PMSVisit(Document):
     def validate(self):
         previous = self.get_doc_before_save()
+        enforce_assignment(self, previous)
         if self.status not in ("Assigned", "In Progress", "Completed"):
             frappe.throw(_("Choose a valid PMS Visit status."))
         completing = self.status == "Completed" and (not previous or previous.status != "Completed")
         if completing:
-            frappe.only_for(("System Manager", SUPERVISOR_ROLE))
+            frappe.only_for(COMPLETION_ROLES)
         if self.status == "Completed":
             missing = missing_completion_fields(self)
             if missing:

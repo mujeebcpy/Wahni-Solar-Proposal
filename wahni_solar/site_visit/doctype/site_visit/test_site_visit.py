@@ -18,6 +18,9 @@ class Record(frappe._dict):
         if self.get("denied"):
             raise frappe.PermissionError
 
+    def has_permission(self, permission, user=None):
+        return not self.get("denied")
+
     def get_doc_before_save(self):
         return self.get("previous")
 
@@ -38,6 +41,10 @@ class SiteVisitTestCase(unittest.TestCase):
         eligible = patch.object(site_visit, "is_eligible_supervisor", return_value=True)
         eligible.start()
         self.addCleanup(eligible.stop)
+        # Role/assignment policy needs a site; covered by field_portal integration tests.
+        assignment = patch.object(site_visit, "enforce_assignment")
+        assignment.start()
+        self.addCleanup(assignment.stop)
 
 
 class TestSiteVisit(SiteVisitTestCase):
@@ -51,7 +58,7 @@ class TestSiteVisit(SiteVisitTestCase):
                 fake.throw.side_effect = ValueError
                 with self.assertRaises(ValueError):
                     site_visit.SiteVisit.validate(self.record(status="Completed", **values))
-                fake.only_for.assert_called_once_with(("System Manager", "Project Supervisor"))
+                fake.only_for.assert_called_once_with(("System Manager", "Projects Manager", "Project Supervisor"))
 
     def test_completion_validates_supervisor_again(self):
         previous = self.record(site_visit_by="EMP")
@@ -136,8 +143,7 @@ class TestSiteVisit(SiteVisitTestCase):
 
     def test_defaults_only_fill_new_report_and_preserve_manual_edits(self):
         doc = self.record(customer_name="Manual name", requested_capacity_kw=0)
-        with patch.object(site_visit.frappe, "get_doc"), \
-                patch.object(site_visit, "proposal_defaults", return_value={"customer_name": "Source", "requested_capacity_kw": 5}) as defaults:
+        with patch.object(site_visit, "proposal_snapshot", return_value={"customer_name": "Source", "requested_capacity_kw": 5}) as defaults:
             site_visit.SiteVisit.before_validate(doc)
             self.assertEqual(doc.customer_name, "Manual name")
             self.assertEqual(doc.requested_capacity_kw, 5)
@@ -211,7 +217,7 @@ class TestSiteVisitAPI(SiteVisitTestCase):
         with patch.object(api, "frappe") as fake, patch.object(api, "get_proposal_visit", return_value=Record(name="SV")):
             fake.get_doc.side_effect = [self.proposal(), visit]
             self.assertIs(unwrap(api.make_site_visit)("P"), visit)
-            visit.check_permission.assert_called_once_with("read")
+            visit.has_permission.assert_called_once_with("read")
             fake.new_doc.assert_not_called()
             visit.save.assert_not_called()
 

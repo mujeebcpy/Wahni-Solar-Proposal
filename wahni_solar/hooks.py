@@ -305,3 +305,15 @@ scheduler_events = {
 		"0 19 * * *": ["wahni_solar.solar_monitor.schedule.daily_refresh"],
 	},
 }
+
+# Field portal: restricted supervisors see only visits assigned to their Employee.
+has_permission['Site Visit'] = "wahni_solar.field_portal.access.visit_has_permission"
+has_permission['PMS Visit'] = "wahni_solar.field_portal.access.visit_has_permission"
+permission_query_conditions['Site Visit'] = "wahni_solar.field_portal.access.site_visit_query_conditions"
+permission_query_conditions['PMS Visit'] = "wahni_solar.field_portal.access.pms_visit_query_conditions"
+
+# Wahni Field PWA: every /field/... route renders www/field.html (SPA history routing).
+website_route_rules = [
+    {"from_route": "/field/<path:app_path>", "to_route": "field"},
+]
+page_renderer = ["wahni_solar.field_portal.renderer.FieldWorkerRenderer"]

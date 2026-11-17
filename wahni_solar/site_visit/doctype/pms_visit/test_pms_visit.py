@@ -31,6 +31,10 @@ class TestPMSVisit(unittest.TestCase):
         eligible = patch.object(pms_visit, "is_eligible_supervisor", return_value=True)
         self.eligible = eligible.start()
         self.addCleanup(eligible.stop)
+        # Role/assignment policy needs a site; covered by field_portal integration tests.
+        assignment = patch.object(pms_visit, "enforce_assignment")
+        assignment.start()
+        self.addCleanup(assignment.stop)
 
     def valid_record(self, **values):
         return Record(project="PROJECT", customer="CUSTOMER", service_person="EMPLOYEE", **values)
@@ -57,7 +61,7 @@ class TestPMSVisit(unittest.TestCase):
 
     def test_complete_report_can_be_saved(self):
         pms_visit.PMSVisit.validate(self.completed_record())
-        self.frappe.only_for.assert_called_once_with(("System Manager", "Project Supervisor"))
+        self.frappe.only_for.assert_called_once_with(("System Manager", "Projects Manager", "Project Supervisor"))
 
     def test_completion_checks_role(self):
         self.frappe.only_for.side_effect = frappe.PermissionError

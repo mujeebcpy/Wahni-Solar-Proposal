@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "name": "wahni_solar",
+  "description": "Build hooks for the Wahni Field PWA (frontend/)",
+  "scripts": {
+    "postinstall": "cd frontend && yarn install --frozen-lockfile",
+    "build": "cd frontend && yarn build",
+    "dev": "cd frontend && yarn dev",
+    "test": "cd frontend && yarn test"
+  }
+}

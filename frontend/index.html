@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+		<title>Wahni Field</title>
+		<meta name="description" content="Wahni field work: site visits, PMS visits and expenses" />
+		<meta name="theme-color" content="#f59e0b" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-title" content="Wahni Field" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<link rel="icon" type="image/png" href="/icons/favicon-64.png" />
+		<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+	</head>
+	<body class="antialiased bg-gray-50">
+		<div id="app"></div>
+		<div id="modals"></div>
+		<div id="popovers"></div>
+		<script type="application/json" id="boot-data">{{ boot_json | safe }}</script>
+		<script>
+			window.csrf_token = "{{ csrf_token }}"
+			window.frappe = window.frappe || {}
+			try {
+				window.frappe.boot = JSON.parse(document.getElementById("boot-data").textContent)
+			} catch (e) {
+				window.frappe.boot = null
+			}
+		</script>
+		<script type="module" src="/src/main.js"></script>
+	</body>
+</html>

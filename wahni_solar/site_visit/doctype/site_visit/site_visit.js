@@ -1,6 +1,8 @@
 frappe.ui.form.on("Site Visit", {
     setup(frm) {
         frm.set_query("site_visit_by", () => ({query: "wahni_solar.site_visit.api.supervisor_query"}));
+        // Supervisors cannot read proposals; search returns only (name, customer).
+        frm.set_query("solar_proposal", () => ({query: "wahni_solar.site_visit.api.proposal_query"}));
     },
     async solar_proposal(frm) {
         if (!frm.is_new() || !frm.doc.solar_proposal) return;
