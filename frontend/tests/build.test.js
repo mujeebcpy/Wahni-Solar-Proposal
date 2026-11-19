@@ -23,8 +23,8 @@ describe.skipIf(!built)("generated service worker", () => {
 		expect(source).toContain("SKIP_WAITING")
 		expect(source).not.toMatch(/importScripts/)
 	})
-	it("ships a manifest scoped to /field/", () => {
+	it("ships a manifest scoped to /field", () => {
 		const manifest = JSON.parse(fs.readFileSync(path.join(out, "manifest.webmanifest"), "utf8"))
-		expect(manifest).toMatchObject({ id: "/field/", scope: "/field/", start_url: "/field/", display: "standalone" })
+		expect(manifest).toMatchObject({ id: "/field", scope: "/field", start_url: "/field", display: "standalone" })
 	})
 })

@@ -29,7 +29,7 @@ export const routes = [
 ]
 
 const router = createRouter({
-	history: createWebHistory("/field/"),
+	history: createWebHistory("/field"),
 	routes,
 	scrollBehavior: (to, from, saved) => saved || { top: 0 },
 })

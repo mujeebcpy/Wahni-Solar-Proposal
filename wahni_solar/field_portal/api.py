@@ -5,7 +5,8 @@ from frappe import _
 
 from wahni_solar.field_portal.access import field_access_problem, get_employee, is_office
 
-FIELD_ROUTE = "/field/"
+# No trailing slash: Frappe's nginx config rewrites "/field/" to "/field".
+FIELD_ROUTE = "/field"
 
 
 @frappe.whitelist(methods=["GET"])

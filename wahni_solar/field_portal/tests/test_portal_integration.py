@@ -71,10 +71,9 @@ class TestFieldPortal(TestFieldAccess):
         self.assertTrue(context.csrf_token)
         self.assertNotIn("</script>", context.boot_json)
         self.assertEqual(json.loads(context.boot_json)["x"], "</script><script>alert(1)</script>")
-        with patch.object(frappe, "request", SimpleNamespace(path="/field"), create=True), \
-                self.assertRaises(frappe.Redirect):
-            field.get_context(frappe._dict())
-        self.assertEqual(frappe.local.flags.redirect_location, "/field/")
+        # /field renders directly: nginx strips trailing slashes, so a redirect to /field/ would loop.
+        with patch.object(frappe, "request", SimpleNamespace(path="/field"), create=True):
+            self.assertEqual(field.get_context(frappe._dict()).no_cache, 1)
 
     def test_worker_renderer_only_answers_its_path(self):
         for path, expected in (("/field/sw.js", True), ("/field/", False), ("/field/sw.js.map", False),
@@ -84,7 +83,7 @@ class TestFieldPortal(TestFieldAccess):
         with patch.object(frappe.local, "request", SimpleNamespace(path="/field/sw.js"), create=True):
             response = renderer.FieldWorkerRenderer("field").render()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers["Service-Worker-Allowed"], "/field/")
+        self.assertEqual(response.headers["Service-Worker-Allowed"], "/field")
         self.assertIn("no-store", response.headers["Cache-Control"])
         self.assertTrue(response.mimetype.endswith("javascript"))
 

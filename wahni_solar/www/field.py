@@ -8,16 +8,14 @@ import json
 
 import frappe
 
-from wahni_solar.field_portal.api import FIELD_ROUTE, get_boot
+from wahni_solar.field_portal.api import get_boot
 
 no_cache = 1
 
 
 def get_context(context):
-    # Canonical entry: /field -> /field/ so it stays inside the worker/manifest scope.
-    if frappe.request and frappe.request.path == FIELD_ROUTE.rstrip("/"):
-        frappe.local.flags.redirect_location = FIELD_ROUTE
-        raise frappe.Redirect
+    # /field is canonical. Never redirect /field -> /field/: production nginx
+    # strips trailing slashes (rewrite ^(.+)/$ $1), which would loop forever.
     csrf_token = frappe.sessions.get_csrf_token()
     frappe.db.commit()  # persist the new CSRF token for this session
     context.no_cache = 1

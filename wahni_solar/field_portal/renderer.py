@@ -1,7 +1,7 @@
 """Serve the Wahni Field service worker at /field/sw.js.
 
 A worker controls only URLs under its own path, so it cannot be served from
-/assets/... and still control /field/. The /field/<path> route rule would
+/assets/... and still control /field. The /field/<path> route rule would
 otherwise answer this URL with the SPA HTML.
 """
 
@@ -30,7 +30,9 @@ class FieldWorkerRenderer(BaseRenderer):
         with open(path, "rb") as worker:
             body = worker.read()
         response = Response(body, status=200, mimetype="application/javascript")
-        response.headers["Service-Worker-Allowed"] = "/field/"
+        # Scope is "/field" (no slash, see FIELD_ROUTE), which lies above the
+        # worker's own directory, so it must be allowed explicitly.
+        response.headers["Service-Worker-Allowed"] = "/field"
         # Browsers must always revalidate the worker so updates are noticed.
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         return response

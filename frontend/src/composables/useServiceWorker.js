@@ -2,7 +2,7 @@ import { ref } from "vue"
 import { hasUnsavedChanges } from "./useDirty"
 
 export const WORKER_URL = "/field/sw.js"
-export const WORKER_SCOPE = "/field/"
+export const WORKER_SCOPE = "/field" // allowed by the Service-Worker-Allowed header
 
 const updateAvailable = ref(false)
 let waitingWorker = null

@@ -5,7 +5,9 @@ import path from "path"
 import fs from "fs"
 
 const ASSET_BASE = "/assets/wahni_solar/field/"
-const FIELD_SCOPE = "/field/"
+// No trailing slash: production nginx rewrites "/field/" to "/field".
+// Scopes match by prefix, so "/field" still covers /field/... routes.
+const FIELD_SCOPE = "/field"
 
 export default defineConfig(({ command }) => ({
 	// Assets are served by Frappe from /assets; the router history lives at /field/.
