@@ -38,7 +38,7 @@
 				</p>
 			</section>
 
-			<nav class="-mx-4 mb-4 overflow-x-auto px-4" :aria-label="__('Form steps')">
+			<nav class="chip-scroll -mx-4 mb-3 px-4" :aria-label="__('Form steps')">
 				<ol class="flex gap-2">
 					<li v-for="(step, index) in allSteps" :key="step.key">
 						<button

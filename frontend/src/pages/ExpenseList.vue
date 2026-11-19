@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<div class="-mx-4 mb-3 overflow-x-auto px-4" role="tablist" :aria-label="__('Filter claims')">
+		<div class="chip-scroll -mx-4 mb-2 px-4" role="tablist" :aria-label="__('Filter claims')">
 			<div class="flex gap-2">
 				<button
 					v-for="filter in filters"

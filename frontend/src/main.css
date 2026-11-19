@@ -38,3 +38,13 @@ html {
 :root {
 	--ink-gray-5: #595959;
 }
+
+/* Horizontally scrolling chip rows (filters, form steps): keep the scrollbar
+   clear of the chips and leave room for the focus outline. */
+.chip-scroll {
+	overflow-x: auto;
+	padding-top: 0.25rem;
+	padding-bottom: 0.75rem;
+	scrollbar-width: thin;
+	-webkit-overflow-scrolling: touch;
+}

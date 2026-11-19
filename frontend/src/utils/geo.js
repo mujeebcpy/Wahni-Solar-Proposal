@@ -40,3 +40,20 @@ export function safeHttpUrl(value) {
 		return null
 	}
 }
+
+// Browsers expose geolocation, service workers and app install only on secure
+// origins (https, or http://localhost). On http://<LAN-IP> the location request
+// is refused as PERMISSION_DENIED without ever showing a prompt.
+export function isSecureOrigin(win = typeof window === "undefined" ? undefined : window) {
+	return !!win?.isSecureContext
+}
+
+// "granted" | "prompt" | "denied" | null (Permissions API unavailable, e.g. older Safari).
+export async function locationPermissionState(nav = typeof navigator === "undefined" ? undefined : navigator) {
+	try {
+		const status = await nav?.permissions?.query({ name: "geolocation" })
+		return status?.state ?? null
+	} catch {
+		return null
+	}
+}

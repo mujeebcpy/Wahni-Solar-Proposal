@@ -4,6 +4,12 @@
 			{{ __("Wahni Field is installed on this device.") }}
 		</div>
 		<template v-else>
+			<div v-if="!secure" class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-base text-amber-900" role="alert">
+				<p class="font-semibold">{{ __("Install needs a secure connection") }}</p>
+				<p class="mt-1 text-sm">
+					{{ __("This page was opened over http://, so the browser will not offer to install it (and location will not work). Open Wahni Field from its https:// address to install it.") }}
+				</p>
+			</div>
 			<div v-if="canPrompt" class="rounded-lg border border-gray-200 bg-white p-4">
 				<p class="text-base">{{ __("Install Wahni Field on this device for quick, full-screen access.") }}</p>
 				<Button variant="solid" class="mt-3 w-full min-h-touch" @click="promptInstall">{{ __("Install app") }}</Button>
@@ -34,6 +40,8 @@
 import { Button } from "frappe-ui"
 import { __ } from "@/plugins/translation"
 import { useInstall } from "@/composables/useInstall"
+import { isSecureOrigin } from "@/utils/geo"
 
 const { canPrompt, installed, ios, promptInstall } = useInstall()
+const secure = isSecureOrigin()
 </script>

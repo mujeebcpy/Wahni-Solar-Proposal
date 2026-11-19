@@ -30,7 +30,7 @@
 import { computed, ref } from "vue"
 import { Button, FeatherIcon, FormControl } from "frappe-ui"
 import { __ } from "@/plugins/translation"
-import { fromGeoJSON, mapsUrl, toGeoJSON, validCoordinates } from "@/utils/geo"
+import { fromGeoJSON, isSecureOrigin, locationPermissionState, mapsUrl, toGeoJSON, validCoordinates } from "@/utils/geo"
 
 const props = defineProps({ modelValue: { type: String, default: null }, readOnly: Boolean })
 const emit = defineEmits(["update:modelValue"])
@@ -43,16 +43,30 @@ const lat = ref(point.value?.lat ?? "")
 const lng = ref(point.value?.lng ?? "")
 
 // Location is read once, only when the user asks; never tracked continuously.
-function capture() {
+function fail(text) {
+	locating.value = false
+	failed.value = true
+	manual.value = true
+	message.value = text
+}
+
+async function capture() {
 	message.value = ""
 	failed.value = false
+	if (!isSecureOrigin()) {
+		fail(__("Location needs a secure (https://) connection. Open Wahni Field over https, or enter the coordinates manually."))
+		return
+	}
 	if (!navigator.geolocation) {
-		failed.value = true
-		message.value = __("Location is not available on this device. Enter it manually.")
-		manual.value = true
+		fail(__("Location is not available on this device. Enter it manually."))
 		return
 	}
 	locating.value = true
+	// A previously blocked site never shows the prompt again: tell the user how to unblock it.
+	if ((await locationPermissionState()) === "denied") {
+		fail(__("Location is blocked for this site. Allow it in the browser's site settings (lock icon next to the address), then try again."))
+		return
+	}
 	navigator.geolocation.getCurrentPosition(
 		(position) => {
 			locating.value = false
@@ -60,15 +74,14 @@ function capture() {
 			emit("update:modelValue", toGeoJSON(latitude, longitude))
 			message.value = __("Location captured (accuracy about {0} m).", [Math.round(accuracy)])
 		},
-		(error) => {
-			locating.value = false
-			failed.value = true
-			manual.value = true
-			message.value =
+		(error) =>
+			fail(
 				error.code === 1
-					? __("Location permission was denied. Enter the coordinates manually.")
-					: __("Could not get your location. Enter it manually or try again.")
-		},
+					? __("Location permission was denied. Allow location for this site (and turn on device location), or enter the coordinates manually.")
+					: error.code === 3
+						? __("Getting your location took too long. Move to open sky and try again, or enter it manually.")
+						: __("Could not get your location. Check that device location is on, then try again or enter it manually.")
+			),
 		{ enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
 	)
 }

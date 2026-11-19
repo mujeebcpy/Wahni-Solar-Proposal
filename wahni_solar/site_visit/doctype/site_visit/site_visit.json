@@ -1,138 +1,689 @@
 {
+ "actions": [],
+ "autoname": "{customer_name}.-.{lead}.-.##",
+ "creation": "2026-11-13 12:00:00",
  "doctype": "DocType",
- "name": "Site Visit",
- "module": "Site Visit",
  "engine": "InnoDB",
- "autoname": "format:SV-{YYYY}-{#####}",
- "title_field": "customer_name",
- "search_fields": "solar_proposal,customer_name,lead,customer",
- "show_title_field_in_link": 1,
- "track_changes": 1,
- "make_attachments_public": 0,
  "field_order": [
-  "visit_details", "solar_proposal", "lead", "customer", "company", "currency", "lead_owner", "lead_source",
-  "visit_column", "site_visit_by", "visit_date", "status",
-  "basic_information", "customer_name", "contact_number", "consumer_name", "consumer_phone_number", "email_id",
-  "basic_column", "monthly_average_bill", "requested_capacity_kw", "consumer_number", "wheeling_option",
-  "documentation_requirements", "name_correction", "new_name", "address_correction", "correction_reason",
-  "documentation_column", "connected_load_kw", "actual_load_kw", "loan_requirement", "loan_percentage", "bank_and_branch",
-  "site_location", "geolocation", "location", "landmark", "pincode", "address",
-  "location_column", "access_to_site", "bus_availability", "food_availability", "room_availability",
-  "site_visit_remarks", "roof_type", "available_roof_area_sqm", "risk_of_shade", "overall_building_height_m", "soil_type",
-  "pits_column", "number_of_pits", "pit_depth_m", "cable_routing", "structure_remarks", "relative_location_of_pits",
-  "measurements_and_status", "expected_structure_height_m", "panel_to_db_distance_m", "db_to_energy_meter_distance_m",
-  "neutral_link", "down_conductor_length_m", "number_of_down_conductors", "copper_length_m", "panel_arrangement", "expected_execution_date",
-  "measurements_column", "building_construction_status", "main_cable_type", "main_cable_length_m", "meter_box_condition",
-  "isolator_with_main_switch", "earth_rod_specification", "walkway", "ladder_type", "ladder_height_m",
-  "door_arrangement_for_sheet_roof", "lightning_arrestor_location",
-  "drawings", "building_outline", "panel_layout", "db_layout"
+  "visit_details",
+  "solar_proposal",
+  "lead",
+  "customer",
+  "company",
+  "currency",
+  "visit_column",
+  "site_visit_by",
+  "visit_date",
+  "status",
+  "basic_information",
+  "customer_name",
+  "contact_number",
+  "consumer_name",
+  "consumer_phone_number",
+  "email_id",
+  "basic_column",
+  "monthly_average_bill",
+  "requested_capacity_kw",
+  "consumer_number",
+  "wheeling_option",
+  "documentation_requirements",
+  "name_correction",
+  "new_name",
+  "address_correction",
+  "correction_reason",
+  "documentation_column",
+  "connected_load_kw",
+  "actual_load_kw",
+  "loan_requirement",
+  "loan_percentage",
+  "bank_and_branch",
+  "site_location",
+  "geolocation",
+  "location",
+  "landmark",
+  "pincode",
+  "address",
+  "location_column",
+  "access_to_site",
+  "bus_availability",
+  "food_availability",
+  "room_availability",
+  "site_visit_remarks",
+  "roof_type",
+  "available_roof_area_sqm",
+  "risk_of_shade",
+  "overall_building_height_m",
+  "soil_type",
+  "pits_column",
+  "number_of_pits",
+  "pit_depth_m",
+  "cable_routing",
+  "structure_remarks",
+  "relative_location_of_pits",
+  "measurements_and_status",
+  "expected_structure_height_m",
+  "panel_to_db_distance_m",
+  "db_to_energy_meter_distance_m",
+  "neutral_link",
+  "down_conductor_length_m",
+  "number_of_down_conductors",
+  "copper_length_m",
+  "panel_arrangement",
+  "expected_execution_date",
+  "measurements_column",
+  "building_construction_status",
+  "main_cable_type",
+  "main_cable_length_m",
+  "meter_box_condition",
+  "isolator_with_main_switch",
+  "earth_rod_specification",
+  "walkway",
+  "ladder_type",
+  "ladder_height_m",
+  "door_arrangement_for_sheet_roof",
+  "lightning_arrestor_location",
+  "drawings",
+  "building_outline",
+  "panel_layout",
+  "db_layout"
  ],
  "fields": [
-  {"fieldname": "visit_details", "fieldtype": "Section Break", "label": "Visit Details"},
-  {"fieldname": "solar_proposal", "fieldtype": "Link", "label": "Solar Proposal", "options": "Solar Proposal", "reqd": 1, "unique": 1, "set_only_once": 1, "no_copy": 1, "in_list_view": 1, "in_standard_filter": 1},
-  {"fieldname": "lead", "fieldtype": "Link", "label": "Lead", "options": "Lead", "read_only": 1},
-  {"fieldname": "customer", "fieldtype": "Link", "label": "Customer", "options": "Customer", "read_only": 1},
-  {"fieldname": "company", "fieldtype": "Link", "label": "Company", "options": "Company", "read_only": 1},
-  {"fieldname": "currency", "fieldtype": "Link", "label": "Currency", "options": "Currency", "read_only": 1},
-  {"fieldname": "lead_owner", "fieldtype": "Link", "label": "Lead Owner", "options": "User", "read_only": 1},
-  {"fieldname": "lead_source", "fieldtype": "Link", "label": "Lead Source", "options": "Lead Source", "read_only": 1},
-  {"fieldname": "visit_column", "fieldtype": "Column Break"},
-  {"fieldname": "site_visit_by", "fieldtype": "Link", "label": "Site Visit By", "options": "Employee", "mandatory_depends_on": "eval:doc.__islocal || doc.status == 'Completed'", "in_list_view": 1, "in_standard_filter": 1, "description": "Assigned supervisor: an active Employee whose enabled User has the Project Supervisor role."},
-  {"fieldname": "visit_date", "fieldtype": "Date", "label": "Visit Date", "mandatory_depends_on": "eval:doc.status == 'Completed'", "in_list_view": 1},
-  {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Assigned\nIn Progress\nCompleted", "default": "Assigned", "reqd": 1, "permlevel": 1, "in_list_view": 1, "in_standard_filter": 1, "no_copy": 1},
-  {"fieldname": "basic_information", "fieldtype": "Section Break", "label": "Basic Information"},
-  {"fieldname": "customer_name", "fieldtype": "Data", "label": "Customer Name", "reqd": 1, "in_list_view": 1},
-  {"fieldname": "contact_number", "fieldtype": "Data", "label": "Contact Number", "options": "Phone"},
-  {"fieldname": "consumer_name", "fieldtype": "Data", "label": "Consumer Name"},
-  {"fieldname": "consumer_phone_number", "fieldtype": "Data", "label": "Consumer Phone Number", "options": "Phone"},
-  {"fieldname": "email_id", "fieldtype": "Data", "label": "Email ID", "options": "Email"},
-  {"fieldname": "basic_column", "fieldtype": "Column Break"},
-  {"fieldname": "monthly_average_bill", "fieldtype": "Currency", "label": "Monthly Average Bill", "options": "currency", "non_negative": 1},
-  {"fieldname": "requested_capacity_kw", "fieldtype": "Float", "label": "Requested Capacity (kW)", "non_negative": 1},
-  {"fieldname": "consumer_number", "fieldtype": "Data", "label": "Consumer Number"},
-  {"fieldname": "wheeling_option", "fieldtype": "Select", "label": "Wheeling Option", "options": "\nYes\nNo"},
-  {"fieldname": "documentation_requirements", "fieldtype": "Section Break", "label": "Documentation Requirements"},
-  {"fieldname": "name_correction", "fieldtype": "Select", "label": "Name Correction", "options": "\nYes\nNo"},
-  {"fieldname": "new_name", "fieldtype": "Data", "label": "New Name", "depends_on": "eval:doc.name_correction == 'Yes'"},
-  {"fieldname": "address_correction", "fieldtype": "Select", "label": "Address Correction", "options": "\nYes\nNo"},
-  {"fieldname": "correction_reason", "fieldtype": "Small Text", "label": "Correction Reason"},
-  {"fieldname": "documentation_column", "fieldtype": "Column Break"},
-  {"fieldname": "connected_load_kw", "fieldtype": "Float", "label": "Connected Load (kW)", "non_negative": 1},
-  {"fieldname": "actual_load_kw", "fieldtype": "Float", "label": "Actual Load (kW)", "non_negative": 1},
-  {"fieldname": "loan_requirement", "fieldtype": "Select", "label": "Loan Requirement", "options": "\nYes\nNo"},
-  {"fieldname": "loan_percentage", "fieldtype": "Percent", "label": "Loan Percentage", "non_negative": 1, "depends_on": "eval:doc.loan_requirement == 'Yes'"},
-  {"fieldname": "bank_and_branch", "fieldtype": "Data", "label": "Bank and Branch", "depends_on": "eval:doc.loan_requirement == 'Yes'"},
-  {"fieldname": "site_location", "fieldtype": "Section Break", "label": "Site Location Remarks"},
-  {"fieldname": "geolocation", "fieldtype": "Geolocation", "label": "Geolocation"},
-  {"fieldname": "location", "fieldtype": "Data", "label": "Location"},
-  {"fieldname": "landmark", "fieldtype": "Data", "label": "Landmark"},
-  {"fieldname": "pincode", "fieldtype": "Data", "label": "Pincode"},
-  {"fieldname": "address", "fieldtype": "Small Text", "label": "Address"},
-  {"fieldname": "location_column", "fieldtype": "Column Break"},
-  {"fieldname": "access_to_site", "fieldtype": "Small Text", "label": "Access to Site"},
-  {"fieldname": "bus_availability", "fieldtype": "Select", "label": "Bus Availability", "options": "\nYes\nNo"},
-  {"fieldname": "food_availability", "fieldtype": "Select", "label": "Food Availability", "options": "\nYes\nNo"},
-  {"fieldname": "room_availability", "fieldtype": "Select", "label": "Room Availability", "options": "\nYes\nNo"},
-  {"fieldname": "site_visit_remarks", "fieldtype": "Section Break", "label": "Site Visit Remarks"},
-  {"fieldname": "roof_type", "fieldtype": "Data", "label": "Roof Type", "permlevel": 1},
-  {"fieldname": "available_roof_area_sqm", "fieldtype": "Float", "label": "Available Roof Area (sq m)", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "risk_of_shade", "fieldtype": "Small Text", "label": "Risk of Shade", "permlevel": 1},
-  {"fieldname": "overall_building_height_m", "fieldtype": "Float", "label": "Overall Building Height (m)", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "soil_type", "fieldtype": "Data", "label": "Soil Type", "permlevel": 1},
-  {"fieldname": "pits_column", "fieldtype": "Column Break"},
-  {"fieldname": "number_of_pits", "fieldtype": "Int", "label": "Number of Pits", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "pit_depth_m", "fieldtype": "Float", "label": "Pit Depth (m)", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "cable_routing", "fieldtype": "Small Text", "label": "Cable Routing", "permlevel": 1},
-  {"fieldname": "structure_remarks", "fieldtype": "Small Text", "label": "Structure Remarks", "permlevel": 1},
-  {"fieldname": "relative_location_of_pits", "fieldtype": "Small Text", "label": "Relative Location of Pits", "permlevel": 1},
-  {"fieldname": "measurements_and_status", "fieldtype": "Section Break", "label": "Approximate Measurements and Status"},
-  {"fieldname": "expected_structure_height_m", "fieldtype": "Float", "label": "Expected Structure Height (m)", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "panel_to_db_distance_m", "fieldtype": "Float", "label": "Distance from Panel to DB (m)", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "db_to_energy_meter_distance_m", "fieldtype": "Float", "label": "DB to Energy Meter (m)", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "neutral_link", "fieldtype": "Data", "label": "Neutral Link", "permlevel": 1},
-  {"fieldname": "down_conductor_length_m", "fieldtype": "Float", "label": "Down Conductor Length (m)", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "number_of_down_conductors", "fieldtype": "Int", "label": "Number of Down Conductors", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "copper_length_m", "fieldtype": "Float", "label": "Length of Copper (m)", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "panel_arrangement", "fieldtype": "Small Text", "label": "Panel Arrangement", "permlevel": 1},
-  {"fieldname": "expected_execution_date", "fieldtype": "Date", "label": "Expected Execution Date", "permlevel": 1},
-  {"fieldname": "measurements_column", "fieldtype": "Column Break"},
-  {"fieldname": "building_construction_status", "fieldtype": "Data", "label": "Building Construction Status", "permlevel": 1},
-  {"fieldname": "main_cable_type", "fieldtype": "Data", "label": "Main Cable Type", "permlevel": 1},
-  {"fieldname": "main_cable_length_m", "fieldtype": "Float", "label": "Main Cable Length (m)", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "meter_box_condition", "fieldtype": "Data", "label": "Meter Box Condition", "permlevel": 1},
-  {"fieldname": "isolator_with_main_switch", "fieldtype": "Select", "label": "Isolator with Main Switch", "options": "\nYes\nNo", "permlevel": 1},
-  {"fieldname": "earth_rod_specification", "fieldtype": "Small Text", "label": "Earth Rod Specification", "permlevel": 1},
-  {"fieldname": "walkway", "fieldtype": "Small Text", "label": "Walkway", "permlevel": 1},
-  {"fieldname": "ladder_type", "fieldtype": "Data", "label": "Ladder Type", "permlevel": 1},
-  {"fieldname": "ladder_height_m", "fieldtype": "Float", "label": "Ladder Height (m)", "non_negative": 1, "permlevel": 1},
-  {"fieldname": "door_arrangement_for_sheet_roof", "fieldtype": "Small Text", "label": "Door Arrangement for Sheet Roof", "permlevel": 1},
-  {"fieldname": "lightning_arrestor_location", "fieldtype": "Small Text", "label": "Location of Lightning Arrestor", "permlevel": 1},
-  {"fieldname": "drawings", "fieldtype": "Section Break", "label": "Building Outline and Layouts", "description": "Upload sketches, images, or PDFs as private files."},
-  {"fieldname": "building_outline", "fieldtype": "Attach", "label": "Building Outline", "permlevel": 1, "no_copy": 1},
-  {"fieldname": "panel_layout", "fieldtype": "Attach", "label": "Panel Layout with Earth Pit Locations", "permlevel": 1, "no_copy": 1},
-  {"fieldname": "db_layout", "fieldtype": "Attach", "label": "DB Layout", "permlevel": 1, "no_copy": 1}
+  {
+   "fieldname": "visit_details",
+   "fieldtype": "Section Break",
+   "label": "Visit Details"
+  },
+  {
+   "fieldname": "solar_proposal",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Solar Proposal",
+   "no_copy": 1,
+   "options": "Solar Proposal",
+   "reqd": 1,
+   "set_only_once": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "lead",
+   "fieldtype": "Link",
+   "label": "Lead",
+   "options": "Lead",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "visit_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Assigned supervisor: an active Employee whose enabled User has the Project Supervisor role.",
+   "fieldname": "site_visit_by",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Site Visit By",
+   "mandatory_depends_on": "eval:doc.__islocal || doc.status == 'Completed'",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "visit_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Visit Date",
+   "mandatory_depends_on": "eval:doc.status == 'Completed'"
+  },
+  {
+   "default": "Assigned",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "no_copy": 1,
+   "options": "Assigned\nIn Progress\nCompleted",
+   "permlevel": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "basic_information",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Customer Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "contact_number",
+   "fieldtype": "Data",
+   "label": "Contact Number",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "consumer_name",
+   "fieldtype": "Data",
+   "label": "Consumer Name"
+  },
+  {
+   "fieldname": "consumer_phone_number",
+   "fieldtype": "Data",
+   "label": "Consumer Phone Number",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "email_id",
+   "fieldtype": "Data",
+   "label": "Email ID",
+   "options": "Email"
+  },
+  {
+   "fieldname": "basic_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "monthly_average_bill",
+   "fieldtype": "Currency",
+   "label": "Monthly Average Bill",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "requested_capacity_kw",
+   "fieldtype": "Float",
+   "label": "Requested Capacity (kW)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "consumer_number",
+   "fieldtype": "Data",
+   "label": "Consumer Number"
+  },
+  {
+   "fieldname": "wheeling_option",
+   "fieldtype": "Select",
+   "label": "Wheeling Option",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "documentation_requirements",
+   "fieldtype": "Section Break",
+   "label": "Documentation Requirements"
+  },
+  {
+   "fieldname": "name_correction",
+   "fieldtype": "Select",
+   "label": "Name Correction",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.name_correction == 'Yes'",
+   "fieldname": "new_name",
+   "fieldtype": "Data",
+   "label": "New Name"
+  },
+  {
+   "fieldname": "address_correction",
+   "fieldtype": "Select",
+   "label": "Address Correction",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "correction_reason",
+   "fieldtype": "Small Text",
+   "label": "Correction Reason"
+  },
+  {
+   "fieldname": "documentation_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "connected_load_kw",
+   "fieldtype": "Float",
+   "label": "Connected Load (kW)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "actual_load_kw",
+   "fieldtype": "Float",
+   "label": "Actual Load (kW)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "loan_requirement",
+   "fieldtype": "Select",
+   "label": "Loan Requirement",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.loan_requirement == 'Yes'",
+   "fieldname": "loan_percentage",
+   "fieldtype": "Percent",
+   "label": "Loan Percentage",
+   "non_negative": 1
+  },
+  {
+   "depends_on": "eval:doc.loan_requirement == 'Yes'",
+   "fieldname": "bank_and_branch",
+   "fieldtype": "Data",
+   "label": "Bank and Branch"
+  },
+  {
+   "fieldname": "site_location",
+   "fieldtype": "Section Break",
+   "label": "Site Location Remarks"
+  },
+  {
+   "fieldname": "geolocation",
+   "fieldtype": "Geolocation",
+   "label": "Geolocation"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location"
+  },
+  {
+   "fieldname": "landmark",
+   "fieldtype": "Data",
+   "label": "Landmark"
+  },
+  {
+   "fieldname": "pincode",
+   "fieldtype": "Data",
+   "label": "Pincode"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "location_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "access_to_site",
+   "fieldtype": "Small Text",
+   "label": "Access to Site"
+  },
+  {
+   "fieldname": "bus_availability",
+   "fieldtype": "Select",
+   "label": "Bus Availability",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "food_availability",
+   "fieldtype": "Select",
+   "label": "Food Availability",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "room_availability",
+   "fieldtype": "Select",
+   "label": "Room Availability",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "site_visit_remarks",
+   "fieldtype": "Section Break",
+   "label": "Site Visit Remarks"
+  },
+  {
+   "fieldname": "roof_type",
+   "fieldtype": "Data",
+   "label": "Roof Type",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "available_roof_area_sqm",
+   "fieldtype": "Float",
+   "label": "Available Roof Area (sq m)",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "risk_of_shade",
+   "fieldtype": "Small Text",
+   "label": "Risk of Shade",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "overall_building_height_m",
+   "fieldtype": "Float",
+   "label": "Overall Building Height (m)",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "soil_type",
+   "fieldtype": "Data",
+   "label": "Soil Type",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "pits_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "number_of_pits",
+   "fieldtype": "Int",
+   "label": "Number of Pits",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "pit_depth_m",
+   "fieldtype": "Float",
+   "label": "Pit Depth (m)",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "cable_routing",
+   "fieldtype": "Small Text",
+   "label": "Cable Routing",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "structure_remarks",
+   "fieldtype": "Small Text",
+   "label": "Structure Remarks",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "relative_location_of_pits",
+   "fieldtype": "Small Text",
+   "label": "Relative Location of Pits",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "measurements_and_status",
+   "fieldtype": "Section Break",
+   "label": "Approximate Measurements and Status"
+  },
+  {
+   "fieldname": "expected_structure_height_m",
+   "fieldtype": "Float",
+   "label": "Expected Structure Height (m)",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "panel_to_db_distance_m",
+   "fieldtype": "Float",
+   "label": "Distance from Panel to DB (m)",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "db_to_energy_meter_distance_m",
+   "fieldtype": "Float",
+   "label": "DB to Energy Meter (m)",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "neutral_link",
+   "fieldtype": "Data",
+   "label": "Neutral Link",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "down_conductor_length_m",
+   "fieldtype": "Float",
+   "label": "Down Conductor Length (m)",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "number_of_down_conductors",
+   "fieldtype": "Int",
+   "label": "Number of Down Conductors",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "copper_length_m",
+   "fieldtype": "Float",
+   "label": "Length of Copper (m)",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "panel_arrangement",
+   "fieldtype": "Small Text",
+   "label": "Panel Arrangement",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "expected_execution_date",
+   "fieldtype": "Date",
+   "label": "Expected Execution Date",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "measurements_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "building_construction_status",
+   "fieldtype": "Data",
+   "label": "Building Construction Status",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "main_cable_type",
+   "fieldtype": "Data",
+   "label": "Main Cable Type",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "main_cable_length_m",
+   "fieldtype": "Float",
+   "label": "Main Cable Length (m)",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "meter_box_condition",
+   "fieldtype": "Data",
+   "label": "Meter Box Condition",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "isolator_with_main_switch",
+   "fieldtype": "Select",
+   "label": "Isolator with Main Switch",
+   "options": "\nYes\nNo",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "earth_rod_specification",
+   "fieldtype": "Small Text",
+   "label": "Earth Rod Specification",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "walkway",
+   "fieldtype": "Small Text",
+   "label": "Walkway",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "ladder_type",
+   "fieldtype": "Data",
+   "label": "Ladder Type",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "ladder_height_m",
+   "fieldtype": "Float",
+   "label": "Ladder Height (m)",
+   "non_negative": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "door_arrangement_for_sheet_roof",
+   "fieldtype": "Small Text",
+   "label": "Door Arrangement for Sheet Roof",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "lightning_arrestor_location",
+   "fieldtype": "Small Text",
+   "label": "Location of Lightning Arrestor",
+   "permlevel": 1
+  },
+  {
+   "description": "Upload sketches, images, or PDFs as private files.",
+   "fieldname": "drawings",
+   "fieldtype": "Section Break",
+   "label": "Building Outline and Layouts"
+  },
+  {
+   "fieldname": "building_outline",
+   "fieldtype": "Attach",
+   "label": "Building Outline",
+   "no_copy": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "panel_layout",
+   "fieldtype": "Attach",
+   "label": "Panel Layout with Earth Pit Locations",
+   "no_copy": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "db_layout",
+   "fieldtype": "Attach",
+   "label": "DB Layout",
+   "no_copy": 1,
+   "permlevel": 1
+  }
  ],
+ "links": [],
+ "modified": "2026-11-18 23:30:27.350540",
+ "modified_by": "Administrator",
+ "module": "Site Visit",
+ "name": "Site Visit",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
  "permissions": [
-  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "print": 1, "email": 1, "report": 1, "export": 1, "share": 1},
-  {"role": "System Manager", "permlevel": 1, "read": 1, "write": 1},
-  {"role": "Sales User", "read": 1, "write": 1, "create": 1, "print": 1, "report": 1},
-  {"role": "Sales User", "permlevel": 1, "read": 1},
-  {"role": "Project Supervisor", "read": 1, "write": 1, "create": 1, "print": 1, "report": 1},
-  {"role": "Project Supervisor", "permlevel": 1, "read": 1, "write": 1},
-  {"role": "Projects User", "read": 1, "print": 1, "report": 1},
-  {"role": "Projects User", "permlevel": 1, "read": 1},
-  {"role": "Projects Manager", "read": 1, "write": 1, "create": 1, "print": 1, "report": 1},
-  {"role": "Projects Manager", "permlevel": 1, "read": 1, "write": 1}
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Sales User"
+  },
+  {
+   "create": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Supervisor",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Project Supervisor",
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Projects User"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Projects User"
+  },
+  {
+   "create": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Projects Manager",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Projects Manager",
+   "write": 1
+  }
  ],
+ "row_format": "Dynamic",
+ "search_fields": "solar_proposal,customer_name,lead,customer",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [
-  {"title": "Assigned", "color": "Blue"},
-  {"title": "In Progress", "color": "Orange"},
-  {"title": "Completed", "color": "Green"}
+  {
+   "color": "Blue",
+   "title": "Assigned"
+  },
+  {
+   "color": "Orange",
+   "title": "In Progress"
+  },
+  {
+   "color": "Green",
+   "title": "Completed"
+  }
  ],
- "creation": "2026-11-13 12:00:00.000000",
- "modified": "2026-11-17 19:00:00.000000",
- "modified_by": "Administrator",
- "owner": "Administrator"
+ "track_changes": 1
 }

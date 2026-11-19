@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { completionRequired, evaluateCondition, isVisible, missingForCompletion } from "@/utils/conditions"
-import { fromGeoJSON, mapsUrl, safeHttpUrl, toGeoJSON, validCoordinates } from "@/utils/geo"
+import { fromGeoJSON, isSecureOrigin, locationPermissionState, mapsUrl, safeHttpUrl, toGeoJSON, validCoordinates } from "@/utils/geo"
 
 describe("evaluateCondition (safe subset, no JS eval)", () => {
 	const doc = { loan_requirement: "Yes", name_correction: "No", customer: "", status: "In Progress", count: 0 }
@@ -67,5 +67,19 @@ describe("geolocation", () => {
 		expect(mapsUrl({ lat: 1, lng: 2 })).toContain("query=1,2")
 		expect(safeHttpUrl("javascript:alert(1)")).toBeNull()
 		expect(safeHttpUrl("https://maps.app/x")).toBe("https://maps.app/x")
+	})
+})
+
+describe("location prerequisites", () => {
+	it("needs a secure context (https or localhost)", () => {
+		expect(isSecureOrigin({ isSecureContext: true })).toBe(true)
+		expect(isSecureOrigin({ isSecureContext: false })).toBe(false)
+		expect(isSecureOrigin(undefined)).toBe(false)
+	})
+	it("reads the permission state when the Permissions API exists", async () => {
+		const nav = { permissions: { query: async () => ({ state: "denied" }) } }
+		expect(await locationPermissionState(nav)).toBe("denied")
+		expect(await locationPermissionState({})).toBe(null)
+		expect(await locationPermissionState({ permissions: { query: async () => { throw new Error("x") } } })).toBe(null)
 	})
 })
